@@ -1,6 +1,6 @@
 from port import Port
 
-def ip_generator():
+def port_generator():
     first_part = 0
     second_part = 1
 
@@ -10,26 +10,26 @@ def ip_generator():
         yield Port(ip, 24)
 
         second_part += 1
-        if second_part == 256:
+        if second_part == 255:
             second_part = 1
             first_part += 1
 
 class Device:
     _counter = 0
     ip_address_pool = set()
-    ip_gen = ip_generator()
+    port_gen = port_generator()
 
     def __init__(self, name = None, port_number = 1):
         class_name = self.__class__.__name__
         self.name = f"{class_name}_{Device._counter}" if name is None else name
         self.port_number = port_number
-        self.ports = [next(Device.ip_gen) for _ in range(port_number)]
+        self.ports = [next(Device.port_gen) for _ in range(port_number)]
 
         Device._counter += 1
 
     def add_port(self, ip = None, mask = 24):
         if ip is None:
-            new_port = next(Device.ip_gen)
+            new_port = next(Device.port_gen)
             if mask != 24:
                 new_port.set_mask(mask)
         else:
