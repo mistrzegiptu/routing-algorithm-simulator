@@ -1,6 +1,7 @@
-def main():
-    print("Hello from backend!")
+from fastapi import FastAPI
 
+app = FastAPI(title="Hello World")
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+def say_hello():
+    return {"message": "Hello World"}
