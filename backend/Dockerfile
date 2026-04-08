@@ -1,22 +1,27 @@
 FROM python:3.14-slim AS builder
 
-WORKDIR /app
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN pip install --upgrade pip pdm
+WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 
-RUN pdm install --prod
-
-FROM python:3.14-slim
-
-WORKDIR /app
-
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY . .
 
+RUN uv sync --frozen --no-dev
+
+FROM python:3.14-slim
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+
+COPY --from=builder /app /app
+
+ENV PATH="/app/.venv/bin:$PATH"
+
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]
