@@ -1,4 +1,4 @@
-from backend.objects.device import Device
+from .device import Device
 
 class Router(Device):
     def __init__(self, name = None, port_number = 1):
