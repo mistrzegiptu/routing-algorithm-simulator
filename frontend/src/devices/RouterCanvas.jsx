@@ -15,7 +15,7 @@ export default function RouterCanvas({ routers, onUpdateRouterPosition }) {
         width: '80%',
         minWidth: '800px',
         margin: '30px auto 0',
-        height: '600px',
+        height: '70vh',
         backgroundColor: '#1e1e2f',
         borderRadius: '12px',
         boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',

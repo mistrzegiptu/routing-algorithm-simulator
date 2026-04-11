@@ -13,7 +13,7 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
     }
   }, []);
 
-  const handleMouseDown = (e) => {
+  const handleImageMouseDown = (e) => {
     e.preventDefault();
     const element = elementRef.current;
     const canvas = canvasRef.current;
@@ -31,22 +31,21 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
   };
 
   const handleMouseMove = (e) => {
-      if (!isDragging || !canvasRef.current) return;
+    if (!isDragging || !canvasRef.current) return;
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const element = elementRef.current;
+    if (!element) return;
 
-      const canvasRect = canvasRef.current.getBoundingClientRect();
-      const element = elementRef.current;
-      if (!element) return;
+    let newX = e.clientX - canvasRect.left - dragOffset.x;
+    let newY = e.clientY - canvasRect.top - dragOffset.y;
 
-      let newX = e.clientX - canvasRect.left - dragOffset.x;
-      let newY = e.clientY - canvasRect.top - dragOffset.y;
+    const maxX = canvasRect.width - element.offsetWidth;
+    const maxY = canvasRect.height - element.offsetHeight;
+    newX = Math.max(0, Math.min(newX, maxX));
+    newY = Math.max(0, Math.min(newY, maxY));
 
-      const maxX = canvasRect.width - element.offsetWidth;
-      const maxY = canvasRect.height - element.offsetHeight;
-      newX = Math.max(0, Math.min(newX, maxX));
-      newY = Math.max(0, Math.min(newY, maxY));
-
-      onPositionChange(router.id, newX, newY);
-    };
+    onPositionChange(router.id, newX, newY);
+  };
 
   const handleMouseUp = () => {
     setIsDragging(false);
@@ -70,14 +69,17 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
         position: 'absolute',
         left: router.x,
         top: router.y,
-        cursor: isDragging ? 'grabbing' : 'grab',
+        cursor: isDragging ? 'grabbing' : 'default',
         zIndex: zIndex,
         userSelect: 'none',
         filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
       }}
-      onMouseDown={handleMouseDown}
     >
-      <RouterComponent routerData={router} />
+      <RouterComponent
+        routerData={router}
+        onImageMouseDown={handleImageMouseDown}
+        isDragging={isDragging}
+      />
     </div>
   );
 }
