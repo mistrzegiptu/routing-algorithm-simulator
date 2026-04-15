@@ -1,0 +1,8 @@
+services:
+  backend:
+    restart: always
+    
+  frontend:
+    restart: always
+    ports:
+      - "80:80"
