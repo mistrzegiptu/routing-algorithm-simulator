@@ -6,11 +6,11 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --no-dev --no-install-project
 
 COPY . .
 
-RUN uv sync --frozen --no-dev
+RUN uv sync --no-dev
 
 FROM python:3.14-slim
 

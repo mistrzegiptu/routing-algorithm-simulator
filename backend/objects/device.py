@@ -1,4 +1,4 @@
-from port import Port
+from .port import Port
 
 def port_generator():
     first_part = 0
@@ -24,6 +24,7 @@ class Device:
         self.name = f"{class_name}_{Device._counter}" if name is None else name
         self.port_number = port_number
         self.ports = [next(Device.port_gen) for _ in range(port_number)]
+        self.id = Device._counter
 
         Device._counter += 1
 
