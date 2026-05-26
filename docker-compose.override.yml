@@ -1,0 +1,17 @@
+services:
+  backend:
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn app:app --host 0.0.0.0 --port 5000 --reload --reload-dir /app
+
+  frontend:
+    build:
+      target: build
+    ports:
+     - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0

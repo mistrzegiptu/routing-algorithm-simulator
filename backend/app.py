@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from datetime import datetime
 
 from objects.api_objects import RouterCreateRequest
 from objects.router import Router
@@ -8,8 +9,12 @@ app = FastAPI(title="Hello World")
 routers_db = []
 
 @app.get("/api/check")
-def say_hello():
-    return {"message": "Hello World"}
+def healthcheck():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "backend-api"
+    }
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
