@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import RouterComponent from './RouterComponent';
+import DeviceComponent from './DeviceComponent';
 
-export default function DraggableRouter({ router, onPositionChange, onDragStart, zIndex }) {
+export default function DraggableDevice({ device, onPositionChange, onDragStart, zIndex }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
@@ -26,7 +26,7 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
     const offsetY = e.clientY - elementRect.top;
 
     setDragOffset({ x: offsetX, y: offsetY });
-    onDragStart(router.id);
+    onDragStart(device.id);
     setIsDragging(true);
   };
 
@@ -44,7 +44,7 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
     newX = Math.max(0, Math.min(newX, maxX));
     newY = Math.max(0, Math.min(newY, maxY));
 
-    onPositionChange(router.id, newX, newY);
+    onPositionChange(device.id, newX, newY);
   };
 
   const handleMouseUp = () => {
@@ -67,16 +67,16 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
       ref={elementRef}
       style={{
         position: 'absolute',
-        left: router.x,
-        top: router.y,
+        left: device.x,
+        top: device.y,
         cursor: isDragging ? 'grabbing' : 'default',
         zIndex: zIndex,
         userSelect: 'none',
         filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
       }}
     >
-      <RouterComponent
-        routerData={router}
+      <DeviceComponent
+        deviceData={device}
         onImageMouseDown={handleImageMouseDown}
         isDragging={isDragging}
       />

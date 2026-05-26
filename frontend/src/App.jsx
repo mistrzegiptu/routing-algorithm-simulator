@@ -1,35 +1,59 @@
-import { useState, useEffect } from 'react';
-import AddRouterForm from "./devices/AddRouterForm.jsx";
-import RouterCanvas from "./devices/RouterCanvas.jsx";
+import { useState } from 'react';
+import AddItemForm from "./devices/AddItemForm.jsx";
+import NetworkCanvas from "./devices/NetworkCanvas.jsx";
 
 function App() {
-  const [routers, setRouters] = useState([]);
+  const [devices, setDevices] = useState([]);
 
+  const handleAddDevice = (newDevice, type) => {
+    setDevices(prev => [
+      ...prev,
+      {
+        ...newDevice,
+        type: type,
+        x: 100,
+        y: 100,
+      }
+    ]);
+  };
 
-  const handleAddRouter = (newRouter) => {
-      setRouters(prev => [
-        ...prev,
-        {
-          ...newRouter,
-          x: 100,
-          y: 100,
-        }
-      ]);
-    };
-
-  const handleUpdateRouterPosition = (id, x, y) => {
-    setRouters(prev =>
-      prev.map(r => (r.id === id ? { ...r, x, y } : r))
+  const handleUpdateDevicePosition = (id, x, y) => {
+    setDevices(prev =>
+      prev.map(d => (d.id === id ? { ...d, x, y } : d))
     );
   };
 
   return (
      <div style={{minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', boxSizing: 'border-box'}}>
       <h1>Routing Algorithms Simulator</h1>
-      <AddRouterForm onAdd={handleAddRouter} />
-      <RouterCanvas
-        routers={routers}
-        onUpdateRouterPosition={handleUpdateRouterPosition}
+
+      {/* Kontenery na formularze */}
+      <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+
+        {/* Formularz dla Routera */}
+        <AddItemForm
+          title="Dodaj nowy router"
+          namePlaceholder="Nazwa routera (opcjonalnie)"
+          numberPlaceholder="Liczba portów (domyślnie 1)"
+          apiEndpoint="/api/routers"
+          onAdd={(data) => handleAddDevice(data, 'router')}
+        />
+
+        {/* Formularz dla Komputera */}
+        <AddItemForm
+          title="Dodaj nowy komputer"
+          namePlaceholder="Nazwa komputera (opcjonalnie)"
+          numberPlaceholder="Liczba portów (domyślnie 1)"
+          apiEndpoint="/api/computers"
+          onAdd={(data) => handleAddDevice(data, 'computer')}
+        />
+
+      </div>
+
+      {/* Jedno wspólne płótno dla wszystkich obiektów */}
+      <NetworkCanvas
+        devices={devices}
+        onUpdateDevicePosition={handleUpdateDevicePosition}
       />
     </div>
   );
