@@ -23,6 +23,12 @@ function App() {
     );
   };
 
+  const handleUpdateDeviceName = (id, newName) => {
+    setDevices(prev =>
+      prev.map(d => (d.id === id ? { ...d, name: newName } : d))
+    );
+  };
+
   return (
      <div style={{minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', boxSizing: 'border-box'}}>
       <h1>Routing Algorithms Simulator</h1>
@@ -54,6 +60,7 @@ function App() {
       <NetworkCanvas
         devices={devices}
         onUpdateDevicePosition={handleUpdateDevicePosition}
+        onUpdateDeviceName={handleUpdateDeviceName}
       />
     </div>
   );

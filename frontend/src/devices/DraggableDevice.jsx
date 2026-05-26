@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import DeviceComponent from './DeviceComponent';
 
-export default function DraggableDevice({ device, onPositionChange, onDragStart, zIndex }) {
+export default function DraggableDevice({ device, onPositionChange, onDragStart, zIndex, onNameChange }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
@@ -79,6 +79,7 @@ export default function DraggableDevice({ device, onPositionChange, onDragStart,
         deviceData={device}
         onImageMouseDown={handleImageMouseDown}
         isDragging={isDragging}
+        onNameChange={onNameChange}
       />
     </div>
   );

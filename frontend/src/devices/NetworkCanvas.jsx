@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import DraggableDevice from './DraggableDevice';
 
-export default function NetworkCanvas({ devices, onUpdateDevicePosition }) {
+export default function NetworkCanvas({ devices, onUpdateDevicePosition, onUpdateDeviceName }) {
   const [topmostId, setTopmostId] = useState(null);
 
   const handleDragStart = (id) => {
@@ -29,6 +29,7 @@ export default function NetworkCanvas({ devices, onUpdateDevicePosition }) {
           onPositionChange={onUpdateDevicePosition}
           onDragStart={handleDragStart}
           zIndex={device.id === topmostId ? 1000 : 1}
+          onNameChange={onUpdateDeviceName}
         />
       ))}
     </div>
