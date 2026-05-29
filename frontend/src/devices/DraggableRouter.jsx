@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import RouterComponent from './RouterComponent';
 
-export default function DraggableRouter({ router, onPositionChange, onDragStart, zIndex }) {
+export default function DraggableRouter({ router, onPositionChange, onDragStart, onSelectRouter, zIndex }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
@@ -79,6 +79,7 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
         routerData={router}
         onImageMouseDown={handleImageMouseDown}
         isDragging={isDragging}
+        onDoubleClick={() => onSelectRouter(router.id)}
       />
     </div>
   );

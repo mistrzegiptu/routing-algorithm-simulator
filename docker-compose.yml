@@ -3,7 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: backend
+    container_name: inzynierka_backend
     environment:
       - PYTHONUNBUFFERED=1
 
@@ -11,6 +11,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: frontend
+    container_name: inzynierka_frontend
     depends_on:
       - backend

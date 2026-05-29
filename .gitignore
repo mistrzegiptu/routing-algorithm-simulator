@@ -287,6 +287,7 @@ poetry.toml
 pyrightconfig.json
 
 ### react ###
+node_modules/
 .DS_*
 logs
 **/*.backup.*

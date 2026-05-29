@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import DraggableRouter from './DraggableRouter';
 
-export default function RouterCanvas({ routers, onUpdateRouterPosition }) {
+export default function RouterCanvas({ routers, onUpdateRouterPosition, onSelectRouter }) {
   const [topmostId, setTopmostId] = useState(null);
 
   const handleDragStart = (id) => {
@@ -28,6 +28,7 @@ export default function RouterCanvas({ routers, onUpdateRouterPosition }) {
           router={router}
           onPositionChange={onUpdateRouterPosition}
           onDragStart={handleDragStart}
+          onSelectRouter={onSelectRouter}
           zIndex={router.id === topmostId ? 1000 : 1}
         />
       ))}
