@@ -34,3 +34,13 @@ class PortSchema(BaseModel):
 class RouterUpdateRequest(BaseModel):
     name: Optional[str] = None
     ports: Optional[List[PortSchema]] = None
+
+class CreateLinkRequest(BaseModel):
+    device_a_id: int
+    device_b_id: int
+    port_a_num: int
+    port_b_num: int
+
+    bandwidth: int
+    delay: int
+    unit: str
