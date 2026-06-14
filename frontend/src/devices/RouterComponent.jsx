@@ -1,10 +1,11 @@
 import routerImg from '../../images/router.png';
 
-export default function RouterComponent({ routerData, onImageMouseDown, isDragging }) {
+export default function RouterComponent({ routerData, onImageMouseDown, isDragging, onDoubleClick }) {
   if (!routerData) return <div className="text-white">Loading router...</div>;
 
   return (
-    <div className="flex flex-col items-center p-4">
+    <div className="flex flex-col items-center p-4"
+      onDoubleClick={onDoubleClick}>
       <img
         src={routerImg}
         alt="Router"

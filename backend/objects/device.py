@@ -1,4 +1,5 @@
 from .port import Port
+from .link import Link
 
 def port_generator():
     first_part = 0
@@ -24,6 +25,7 @@ class Device:
         self.name = f"{class_name}_{Device._counter}" if name is None else name
         self.port_number = port_number
         self.ports = [next(Device.port_gen) for _ in range(port_number)]
+        self.links = []
         self.id = Device._counter
 
         Device._counter += 1
@@ -63,8 +65,31 @@ class Device:
         Device.ip_address_pool.remove(port.ip)
         return port
 
+    def check_port_availability(self, port_number):
+        for link in self.links:
+            if link.device_a == self.id and link.port_a_num == port_number:
+                return False
+            if link.device_b == self.id and link.port_b_num == port_number:
+                return False
+        return True
 
+    def add_link(self, device_b, port_a_num, port_b_num, bandwidth, delay, unit):
+        if port_a_num >= self.port_number or port_b_num >= device_b.port_number:
+            raise ValueError("Invalid port number")
+        
+        if not self.check_port_availability(port_a_num) or not device_b.check_port_availability(port_b_num):
+            raise ValueError("Port is already in use")
+        
+        new_link = Link(self.id, device_b.id, port_a_num, port_b_num, bandwidth, delay, unit)
+        self.links.append(new_link)
+        device_b.links.append(new_link)
+        return new_link
+    
+    def del_link(self, link_id, device_b):
+        link_to_remove = next((l for l in self.links if l.id == link_id), None)
 
-
-
-
+        if not link_to_remove:
+            raise ValueError("Link not found")
+        
+        self.links.remove(link_to_remove)
+        device_b.links.remove(link_to_remove) 
