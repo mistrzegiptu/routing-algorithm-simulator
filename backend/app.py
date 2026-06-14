@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from objects.api_objects import RouterCreateRequest, RouterUpdateRequest, CreateLinkRequest
+from objects.computer import Computer
+from objects.api_objects import RouterCreateRequest, ComputerCreateRequest
 from objects.router import Router
 
 app = FastAPI(title="Hello World")
@@ -17,6 +19,7 @@ app.add_middleware(
 
 routers_db = []
 links_db = []
+computers_db = []
 
 @app.get("/api/check")
 def healthcheck():
@@ -149,3 +152,19 @@ def delete_link(link_id: int):
 def update_link(link_id: int, link_data: CreateLinkRequest):
     delete_link(link_id)
     return create_link(link_data)
+@app.post("/api/computers")
+def create_computer(computer_data: ComputerCreateRequest):
+    kwargs = {}
+    if computer_data.name is not None:
+        kwargs['name'] = computer_data.name
+    if computer_data.port_number is not None:
+        kwargs['port_number'] = computer_data.port_number
+
+    new_computer = Computer(**kwargs)
+    computers_db.append(new_computer)
+
+    return {
+        "id": new_computer.id,
+        "name": new_computer.name,
+        "port_number": new_computer.port_number,
+    }

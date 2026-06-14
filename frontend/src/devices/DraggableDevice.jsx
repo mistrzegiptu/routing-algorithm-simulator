@@ -1,8 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+<<<<<<< HEAD:frontend/src/devices/DraggableRouter.jsx
 import RouterComponent from './RouterComponent';
 import { useCanvas } from '../context/CanvasContext.jsx';
 
 export default function DraggableRouter({ router, onPositionChange, onDragStart, onSelectRouter, zIndex }) {
+=======
+import DeviceComponent from './DeviceComponent';
+
+export default function DraggableDevice({ device, onPositionChange, onDragStart, zIndex, onNameChange }) {
+>>>>>>> d797500dbe312efdf62b83da9839a3da35f75411:frontend/src/devices/DraggableDevice.jsx
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
@@ -29,7 +35,7 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
     const offsetY = e.clientY - elementRect.top;
 
     setDragOffset({ x: offsetX, y: offsetY });
-    onDragStart(router.id);
+    onDragStart(device.id);
     setIsDragging(true);
   };
 
@@ -47,7 +53,7 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
     newX = Math.max(0, Math.min(newX, maxX));
     newY = Math.max(0, Math.min(newY, maxY));
 
-    onPositionChange(router.id, newX, newY);
+    onPositionChange(device.id, newX, newY);
   };
 
   const handleMouseUp = () => {
@@ -70,19 +76,23 @@ export default function DraggableRouter({ router, onPositionChange, onDragStart,
       ref={elementRef}
       style={{
         position: 'absolute',
-        left: router.x,
-        top: router.y,
+        left: device.x,
+        top: device.y,
         cursor: isDragging ? 'grabbing' : 'default',
         zIndex: zIndex,
         userSelect: 'none',
         filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
       }}
     >
-      <RouterComponent
-        routerData={router}
+      <DeviceComponent
+        deviceData={device}
         onImageMouseDown={handleImageMouseDown}
         isDragging={isDragging}
+<<<<<<< HEAD:frontend/src/devices/DraggableRouter.jsx
         onDoubleClick={() => onSelectRouter(router.id)}
+=======
+        onNameChange={onNameChange}
+>>>>>>> d797500dbe312efdf62b83da9839a3da35f75411:frontend/src/devices/DraggableDevice.jsx
       />
     </div>
   );

@@ -29,20 +29,15 @@ function App() {
     }
   }
 
-  const handleAddRouter = (newRouter) => {
-      setRouters(prev => [
-        ...prev,
-        {
-          ...newRouter,
-          x: 100,
-          y: 100,
-        }
-      ]);
-    };
+  const handleUpdateDevicePosition = (id, x, y) => {
+    setDevices(prev =>
+      prev.map(d => (d.id === id ? { ...d, x, y } : d))
+    );
+  };
 
-  const handleUpdateRouterPosition = (id, x, y) => {
-    setRouters(prev =>
-      prev.map(r => (r.id === id ? { ...r, x, y } : r))
+  const handleUpdateDeviceName = (id, newName) => {
+    setDevices(prev =>
+      prev.map(d => (d.id === id ? { ...d, name: newName } : d))
     );
   };
 
