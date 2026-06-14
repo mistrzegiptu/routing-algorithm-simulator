@@ -1,11 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import AddRouterForm from "./devices/AddRouterForm.jsx";
 import RouterCanvas from "./devices/RouterCanvas.jsx";
 import RouterConfigModal from "./devices/RouterConfigModal.jsx";
+import { AddingLinkState } from "./models/AddingLinkState.js";
+import AddLinkModal from "./modals/AddLinkModal.jsx";
+import { CanvasProvider } from "./context/CanvasContext.jsx";
+import { saveLinkRoute } from "./api/router_api.js";
 
 function App() {
   const [routers, setRouters] = useState([]);
+  const [links, setLinks] = useState([]);
+
   const [selectedRouterId, setSelectedRouterId] = useState(null);
+
+  const [addingLinkState, setAddingLinkState] = useState(AddingLinkState.NORMAL);
+  const [sourceRouter, setSourceRouter] = useState(null);
+  const [destinationRouter, setDestinationRouter] = useState(null);
+
+  const addLinkHandler = () => {
+    if (addingLinkState === AddingLinkState.NORMAL) {
+      setAddingLinkState(AddingLinkState.SELECTING_SOURCE);
+      setSourceRouter(null);
+      setDestinationRouter(null);
+    } else {
+      setAddingLinkState(AddingLinkState.NORMAL);
+      setSourceRouter(null);
+      setDestinationRouter(null);
+    }
+  }
 
   const handleAddRouter = (newRouter) => {
       setRouters(prev => [
@@ -24,9 +46,43 @@ function App() {
     );
   };
 
-const handleSelectRouter = (id) => {
-    setSelectedRouterId(id);
+  const handleSelectRouter = (id) => {
+    if (addingLinkState === AddingLinkState.SELECTING_SOURCE) {
+      setSourceRouter(id);
+      setAddingLinkState(AddingLinkState.SELECTING_DESTINATION);
+      console.log("Source router selected:", id);
+    } else if (addingLinkState === AddingLinkState.SELECTING_DESTINATION) {
+      if (id === sourceRouter) {
+        alert("Cannot select the same router as destination");
+        return;
+      }
+
+      setDestinationRouter(id);
+      setAddingLinkState(AddingLinkState.PORTS_SELECTED);
+      console.log("Destination router selected:", id);
+    } else {
+      setSelectedRouterId(id);
+    }
   };
+
+  const saveLink = async (newLinkData) => {
+    try {
+      const savedLink = await saveLinkRoute(newLinkData);
+      setLinks([...links, newLinkData]);
+
+      setAddingLinkState(AddingLinkState.NORMAL);
+      setSourceRouter(null);
+      setDestinationRouter(null);
+    } catch (error) {
+      console.error("Error saving link:", error);
+    }
+  };
+
+  const cancelLink = () => {
+    setAddingLinkState(AddingLinkState.NORMAL);
+    setSourceRouter(null);
+    setDestinationRouter(null);
+  }
 
   const handleCloseConfig = () => {
     setSelectedRouterId(null);
@@ -84,14 +140,21 @@ const handleSelectRouter = (id) => {
   const selectedRouter = routers.find(r => r.id === selectedRouterId);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', boxSizing: 'border-box' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: '20px', boxSizing: 'border-box', cursor: addingLinkState === AddingLinkState.NORMAL || addingLinkState === AddingLinkState.PORTS_SELECTED ? 'default' : 'crosshair' }}>
       <h1>Routing Algorithms Simulator</h1>
       <AddRouterForm onAdd={handleAddRouter} />
-      <RouterCanvas
-        routers={routers}
-        onUpdateRouterPosition={handleUpdateRouterPosition}
-        onSelectRouter={handleSelectRouter}
-      />
+      <div>{addingLinkState === AddingLinkState.SELECTING_SOURCE ? "Selecting source router" : addingLinkState === AddingLinkState.SELECTING_DESTINATION ? "Selecting destination router" : ""}</div>
+      <button onClick={addLinkHandler}>
+        {addingLinkState === AddingLinkState.NORMAL ? "Dodaj połączenie" : "Anuluj"}
+      </button>
+      <CanvasProvider>
+        <RouterCanvas
+          routers={routers}
+          links={links}
+          onUpdateRouterPosition={handleUpdateRouterPosition}
+          onSelectRouter={handleSelectRouter}
+        />
+      </CanvasProvider>
       
       { }
       {selectedRouterId !== null && (
@@ -99,6 +162,15 @@ const handleSelectRouter = (id) => {
           router={selectedRouter} 
           onClose={handleCloseConfig} 
           onSave={handleSaveConfig} 
+        />
+      )}
+
+      {addingLinkState === AddingLinkState.PORTS_SELECTED && (
+        <AddLinkModal
+          sourceId={sourceRouter}
+          destId={destinationRouter}
+          onAddLink={saveLink}
+          onClose={cancelLink}
         />
       )}
     </div>

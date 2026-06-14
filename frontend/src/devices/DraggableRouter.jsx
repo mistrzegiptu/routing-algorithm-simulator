@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import RouterComponent from './RouterComponent';
+import { useCanvas } from '../context/CanvasContext.jsx';
 
 export default function DraggableRouter({ router, onPositionChange, onDragStart, onSelectRouter, zIndex }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
   const canvasRef = useRef(null);
+  const { registerSize } = useCanvas();
 
   useEffect(() => {
     if (elementRef.current) {
       canvasRef.current = elementRef.current.parentElement;
+      registerSize(elementRef.current.offsetWidth, elementRef.current.offsetHeight);
     }
   }, []);
 
