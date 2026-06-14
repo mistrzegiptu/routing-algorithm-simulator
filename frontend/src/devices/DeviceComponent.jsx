@@ -1,38 +1,22 @@
-import { useState } from 'react';
 import routerImg from '../../images/router.png';
 import computerImg from '../../images/computer.png';
 
-export default function DeviceComponent({ deviceData, onImageMouseDown, isDragging, onNameChange }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(deviceData?.name || "");
+const DEVICE_IMAGES = {
+  router: routerImg,
+  computer: computerImg,
+};
 
+export default function DeviceComponent({ deviceData, onImageMouseDown, isDragging, onDoubleClick }) {
   if (!deviceData) return <div className="text-white">Loading device...</div>;
 
-  const imageSrc = deviceData.type === 'computer' ? computerImg : routerImg;
-  const detailLabel = `Porty: ${deviceData.port_number}`;
-
-  const handleDoubleClick = () => {
-    setEditName(deviceData.name || "");
-    setIsEditing(true);
-  };
-
-  const handleSave = () => {
-    setIsEditing(false);
-    if (editName.trim() && editName.trim() !== deviceData.name) {
-      onNameChange(deviceData.id, editName.trim());
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSave();
-    if (e.key === 'Escape') {
-      setEditName(deviceData.name || "");
-      setIsEditing(false);
-    }
-  };
+  const imageSrc = DEVICE_IMAGES[deviceData.type] || routerImg;
 
   return (
-    <div className="flex flex-col items-center p-4">
+    <div
+      className="flex flex-col items-center p-4"
+      onDoubleClick={onDoubleClick}
+      title="Kliknij dwukrotnie, aby skonfigurować"
+    >
       <img
         src={imageSrc}
         alt={deviceData.type}
@@ -42,50 +26,11 @@ export default function DeviceComponent({ deviceData, onImageMouseDown, isDraggi
         draggable={false}
       />
 
-      <div className="mt-4 flex flex-col items-center text-center text-white w-full" style={{ minWidth: '200px' }}>
-
-        {isEditing ? (
-          <input
-            type="text"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            style={{
-              color: '#fff',
-              textAlign: 'center',
-              fontWeight: 'bold',
-              fontSize: '1.25rem',
-              backgroundColor: 'transparent',
-              border: 'none',
-              outline: 'none',
-              width: '100%',
-              padding: '0',
-              margin: '0'
-            }}
-          />
-        ) : (
-          <h2
-            onDoubleClick={handleDoubleClick}
-            title="Kliknij dwukrotnie, aby zmienić nazwę"
-            style={{
-              color: '#fff',
-              textAlign: 'center',
-              fontWeight: 'bold',
-              fontSize: '1.25rem',
-              width: '100%',
-              padding: '0',
-              margin: '0',
-              cursor: 'pointer',
-              userSelect: 'none'
-            }}
-          >
-            {deviceData.name || `Urządzenie (${deviceData.type})`}
-          </h2>
-        )}
-
-        <p className="text-sm mt-1 opacity-80">{detailLabel}</p>
+      <div className="mt-4 text-center text-white" style={{ userSelect: 'none' }}>
+        <h2 className="text-xl font-bold">
+          {deviceData.name || `Urządzenie (${deviceData.type})`}
+        </h2>
+        <p className="text-sm mt-1 opacity-80">Porty: {deviceData.port_number}</p>
       </div>
     </div>
   );

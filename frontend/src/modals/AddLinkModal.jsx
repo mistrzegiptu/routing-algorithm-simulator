@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 import "./AddLinkModal.css";
-import { getAvailablePort } from "../api/router_api.js";
+import { getAvailablePorts } from "../api/device_api.js";
 
 export default function AddLinkModal({sourceId, destId, onAddLink, onClose}) {
     const [sourcePort, setSourcePort] = useState("0");
@@ -14,7 +14,7 @@ export default function AddLinkModal({sourceId, destId, onAddLink, onClose}) {
 
     useEffect(() => {
         const fetchSourcePorts = async () => {
-            const ports = await getAvailablePort(sourceId);
+            const ports = await getAvailablePorts(sourceId);
             setSourcePorts(ports);
             if (ports && ports.length > 0) {
                 setSourcePort(ports[0].toString());
@@ -22,7 +22,7 @@ export default function AddLinkModal({sourceId, destId, onAddLink, onClose}) {
         }
 
         const fetchDestPorts = async () => {
-            const ports = await getAvailablePort(destId);
+            const ports = await getAvailablePorts(destId);
             setDestPorts(ports);
             if (ports && ports.length > 0) {
                 setDestPort(ports[0].toString());

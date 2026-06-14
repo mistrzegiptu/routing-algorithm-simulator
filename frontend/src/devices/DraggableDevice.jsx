@@ -1,14 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-<<<<<<< HEAD:frontend/src/devices/DraggableRouter.jsx
-import RouterComponent from './RouterComponent';
+import DeviceComponent from './DeviceComponent';
 import { useCanvas } from '../context/CanvasContext.jsx';
 
-export default function DraggableRouter({ router, onPositionChange, onDragStart, onSelectRouter, zIndex }) {
-=======
-import DeviceComponent from './DeviceComponent';
-
-export default function DraggableDevice({ device, onPositionChange, onDragStart, zIndex, onNameChange }) {
->>>>>>> d797500dbe312efdf62b83da9839a3da35f75411:frontend/src/devices/DraggableDevice.jsx
+export default function DraggableDevice({ device, onPositionChange, onDragStart, onSelectDevice, zIndex }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const elementRef = useRef(null);
@@ -29,7 +23,6 @@ export default function DraggableDevice({ device, onPositionChange, onDragStart,
     if (!element || !canvas) return;
 
     const elementRect = element.getBoundingClientRect();
-    const canvasRect = canvas.getBoundingClientRect();
 
     const offsetX = e.clientX - elementRect.left;
     const offsetY = e.clientY - elementRect.top;
@@ -74,25 +67,19 @@ export default function DraggableDevice({ device, onPositionChange, onDragStart,
   return (
     <div
       ref={elementRef}
+      className="draggable-device"
       style={{
-        position: 'absolute',
         left: device.x,
         top: device.y,
         cursor: isDragging ? 'grabbing' : 'default',
         zIndex: zIndex,
-        userSelect: 'none',
-        filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
       }}
     >
       <DeviceComponent
         deviceData={device}
         onImageMouseDown={handleImageMouseDown}
         isDragging={isDragging}
-<<<<<<< HEAD:frontend/src/devices/DraggableRouter.jsx
-        onDoubleClick={() => onSelectRouter(router.id)}
-=======
-        onNameChange={onNameChange}
->>>>>>> d797500dbe312efdf62b83da9839a3da35f75411:frontend/src/devices/DraggableDevice.jsx
+        onDoubleClick={() => onSelectDevice(device.id)}
       />
     </div>
   );
