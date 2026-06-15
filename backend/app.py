@@ -2,9 +2,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-from objects.api_objects import RouterCreateRequest, RouterUpdateRequest, CreateLinkRequest
+from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest
 from objects.computer import Computer
-from objects.api_objects import RouterCreateRequest, ComputerCreateRequest
 from objects.router import Router
 
 app = FastAPI(title="Hello World")
@@ -17,9 +16,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-routers_db = []
+devices_db = []
 links_db = []
-computers_db = []
+
+DEVICE_CLASSES = {
+    "router": Router,
+    "computer": Computer,
+}
+
+
+def serialize_device(device):
+    return {
+        "id": device.id,
+        "name": device.name,
+        "port_number": device.port_number,
+        "type": device.__class__.__name__.lower(),
+        "ports": [{"ip": p.ip, "mask": p.mask} for p in device.ports],
+    }
+
+
+def find_device(device_id):
+    return next((d for d in devices_db if d.id == device_id), None)
+
 
 @app.get("/api/check")
 def healthcheck():
@@ -28,6 +46,7 @@ def healthcheck():
         "timestamp": datetime.now().isoformat(),
         "service": "backend-api"
     }
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -41,74 +60,69 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         print("Client disconnected")
 
-@app.post("/api/routers")
-def create_router(router_data: RouterCreateRequest):
+
+@app.post("/api/devices")
+def create_device(device_data: DeviceCreateRequest):
     kwargs = {}
-    if router_data.name is not None:
-        kwargs['name'] = router_data.name
-    if router_data.port_number is not None:
-        kwargs['port_number'] = router_data.port_number
+    if device_data.name is not None:
+        kwargs['name'] = device_data.name
+    if device_data.port_number is not None:
+        kwargs['port_number'] = device_data.port_number
 
-    new_router = Router(**kwargs)
-    routers_db.append(new_router)
+    device_cls = DEVICE_CLASSES[device_data.type]
+    new_device = device_cls(**kwargs)
+    devices_db.append(new_device)
 
-    return {
-        "id": new_router.id,
-        "name": new_router.name,
-        "port_number": new_router.port_number,
-        "ports": [{"ip": p.ip, "mask": p.mask} for p in new_router.ports]
-    }
+    return serialize_device(new_device)
 
-@app.put("/api/routers/{router_id}")
-def update_router(
-    router_id: int, 
-    router_data: RouterUpdateRequest = Body(...)
+
+@app.put("/api/devices/{device_id}")
+def update_device(
+    device_id: int,
+    device_data: DeviceUpdateRequest = Body(...)
 ):
-    router = next((r for r in routers_db if r.id == router_id), None)
-    if not router:
-        raise HTTPException(status_code=404, detail="Router not found")
+    device = find_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
 
-    if router_data.name is not None:
-        router.name = router_data.name
+    if device_data.name is not None:
+        device.name = device_data.name
 
-    if router_data.ports is not None:
-        for i, port_data in enumerate(router_data.ports):
-            if i < len(router.ports):
+    if device_data.ports is not None:
+        for i, port_data in enumerate(device_data.ports):
+            if i < len(device.ports):
                 try:
-                    current_port = router.ports[i]
+                    current_port = device.ports[i]
                     new_ip = port_data.ip if port_data.ip != current_port.ip else None
                     new_mask = port_data.mask if port_data.mask != current_port.mask else None
-                    
+
                     if new_ip or new_mask:
-                        router.edit_port(current_port, new_ip=new_ip, new_mask=new_mask)
+                        device.edit_port(current_port, new_ip=new_ip, new_mask=new_mask)
                 except ValueError as e:
                     raise HTTPException(status_code=400, detail=str(e))
 
-    return {
-        "id": router.id,
-        "name": router.name,
-        "port_number": router.port_number,
-        "ports": [{"ip": p.ip, "mask": p.mask} for p in router.ports]
-    }
+    return serialize_device(device)
 
-@app.get("/api/{router_id}/available-ports")
-def get_available_ports(router_id: int):
-    router = next((r for r in routers_db if r.id == router_id), None)
 
-    if not router:
-        raise HTTPException(status_code=404, detail="Router not found")
+@app.get("/api/devices/{device_id}/available-ports")
+def get_available_ports(device_id: int):
+    device = find_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
 
-    available_ports = []
-    for port_num in range(router.port_number):
-        if router.check_port_availability(port_num):
-            available_ports.append(port_num)
-    
+    available_ports = [
+        port_num
+        for port_num in range(device.port_number)
+        if device.check_port_availability(port_num)
+    ]
+
     return {"available_ports": available_ports}
+
 
 @app.post("/api/links")
 def create_link(link_data: CreateLinkRequest):
-    device_a = next((r for r in routers_db if r.id == link_data.device_a_id), None)
-    device_b = next((r for r in routers_db if r.id == link_data.device_b_id), None)
+    device_a = find_device(link_data.device_a_id)
+    device_b = find_device(link_data.device_b_id)
 
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
@@ -117,7 +131,7 @@ def create_link(link_data: CreateLinkRequest):
         links_db.append(link)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
     return {
         "id": link.id,
         "device_a_id": link.device_a,
@@ -129,42 +143,28 @@ def create_link(link_data: CreateLinkRequest):
         "unit": link.unit
     }
 
+
 @app.delete("/api/links/{link_id}")
 def delete_link(link_id: int):
     link = next((l for l in links_db if l.id == link_id), None)
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
-    
+
     links_db.remove(link)
-    device_a = next((r for r in routers_db if r.id == link.device_a), None)
-    device_b = next((r for r in routers_db if r.id == link.device_b), None)
+    device_a = find_device(link.device_a)
+    device_b = find_device(link.device_b)
 
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
-    
+
     try:
         device_a.del_link(link_id, device_b)
         return {"message": "Link deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @app.put("/api/links/{link_id}")
 def update_link(link_id: int, link_data: CreateLinkRequest):
     delete_link(link_id)
     return create_link(link_data)
-@app.post("/api/computers")
-def create_computer(computer_data: ComputerCreateRequest):
-    kwargs = {}
-    if computer_data.name is not None:
-        kwargs['name'] = computer_data.name
-    if computer_data.port_number is not None:
-        kwargs['port_number'] = computer_data.port_number
-
-    new_computer = Computer(**kwargs)
-    computers_db.append(new_computer)
-
-    return {
-        "id": new_computer.id,
-        "name": new_computer.name,
-        "port_number": new_computer.port_number,
-    }

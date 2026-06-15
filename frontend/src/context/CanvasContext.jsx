@@ -2,21 +2,21 @@ import { createContext, useState, useContext } from 'react';
 
 const CanvasContext = createContext();
 
-export function CanvasProvider({children}) {
-    const [routerSize, setRouterSize] = useState({});
+export function CanvasProvider({ children }) {
+    const [deviceSize, setDeviceSize] = useState({});
 
     const registerSize = (width, height) => {
-    setRouterSize(prev => {
-        if (prev.width === width && prev.height === height) {
-            return prev;
-        }
-        
-        return { "width": width, "height": height };
-    });
-}
+        setDeviceSize(prev => {
+            if (prev.width === width && prev.height === height) {
+                return prev;
+            }
+
+            return { width, height };
+        });
+    };
 
     return (
-        <CanvasContext.Provider value={{ routerSize, registerSize }}>
+        <CanvasContext.Provider value={{ deviceSize, registerSize }}>
             {children}
         </CanvasContext.Provider>
     );

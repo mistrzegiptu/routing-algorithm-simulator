@@ -1,0 +1,111 @@
+.device-config-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.device-config-window {
+    background-color: #1e1e2f;
+    padding: 24px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    width: 380px;
+    color: white;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.device-config-window h3 {
+    margin-top: 0;
+}
+
+.device-config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.device-config-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.device-config-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background-color: #2a2a3f;
+    color: white;
+    box-sizing: border-box;
+}
+
+.device-config-ports {
+    border-top: 1px solid #444;
+    padding-top: 12px;
+}
+
+.device-config-ports h4 {
+    margin: 0 0 12px 0;
+}
+
+.device-config-port-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.device-config-port-ip {
+    flex: 2;
+}
+
+.device-config-port-mask {
+    flex: 1;
+}
+
+.device-config-port-label {
+    display: block;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.device-config-port-input {
+    width: 100%;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background-color: #2a2a3f;
+    color: white;
+    box-sizing: border-box;
+}
+
+.device-config-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.device-config-btn {
+    padding: 8px 16px;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.device-config-btn--cancel {
+    background-color: #555;
+}
+
+.device-config-btn--save {
+    background-color: #2563eb;
+}

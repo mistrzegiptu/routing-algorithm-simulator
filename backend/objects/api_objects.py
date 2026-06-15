@@ -1,22 +1,36 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 import ipaddress
 
-class RouterCreateRequest(BaseModel):
+DEVICE_TYPES = {"router", "computer"}
+
+
+class DeviceCreateRequest(BaseModel):
     name: Optional[str] = None
     port_number: Optional[int] = None
+    type: str = "router"
 
-    @validator('name', pre=True, always=True)
+    @field_validator('name', mode='before')
+    @classmethod
     def empty_str_to_none(cls, v):
         if v == "":
             return None
         return v
-    
+
+    @field_validator('type')
+    @classmethod
+    def validate_type(cls, v):
+        if v not in DEVICE_TYPES:
+            raise ValueError(f"Device type must be one of {sorted(DEVICE_TYPES)}")
+        return v
+
+
 class PortSchema(BaseModel):
     ip: str
     mask: int
 
-    @validator('ip')
+    @field_validator('ip')
+    @classmethod
     def validate_ip(cls, v):
         try:
             ipaddress.IPv4Address(v)
@@ -24,16 +38,18 @@ class PortSchema(BaseModel):
             raise ValueError('Invalid IPv4 address format')
         return v
 
-    @validator('mask')
+    @field_validator('mask')
+    @classmethod
     def validate_mask(cls, v):
         if not (0 <= v <= 32):
             raise ValueError('IPv4 subnet mask must be between 0 and 32')
         return v
-        
 
-class RouterUpdateRequest(BaseModel):
+
+class DeviceUpdateRequest(BaseModel):
     name: Optional[str] = None
     ports: Optional[List[PortSchema]] = None
+
 
 class CreateLinkRequest(BaseModel):
     device_a_id: int
@@ -44,13 +60,3 @@ class CreateLinkRequest(BaseModel):
     bandwidth: int
     delay: int
     unit: str
-
-class ComputerCreateRequest(BaseModel):
-    name: Optional[str] = None
-    port_number: Optional[int] = None
-
-    @validator('name', pre=True, always=True)
-    def empty_str_to_none(cls, v):
-        if v == "":
-            return None
-        return v
