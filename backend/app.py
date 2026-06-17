@@ -66,7 +66,10 @@ def create_device(device_data: DeviceCreateRequest):
     kwargs = {}
     if device_data.name is not None:
         kwargs['name'] = device_data.name
-    if device_data.port_number is not None:
+
+    if device_data.type == "computer":
+        kwargs['port_number'] = 1
+    elif device_data.port_number is not None:
         kwargs['port_number'] = device_data.port_number
 
     device_cls = DEVICE_CLASSES[device_data.type]
@@ -126,6 +129,9 @@ def create_link(link_data: CreateLinkRequest):
 
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
+    if isinstance(device_a, Computer) and isinstance(device_b, Computer):
+        raise HTTPException(status_code=400, detail="Two computers cannot be connected directly")
+
     try:
         link = device_a.add_link(device_b, link_data.port_a_num, link_data.port_b_num, link_data.bandwidth, link_data.delay, link_data.unit)
         links_db.append(link)
