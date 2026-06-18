@@ -1,5 +1,6 @@
 from .port import Port
 from .link import Link
+from .route_entry import RouteEntry
 
 def port_generator():
     first_part = 0
@@ -27,6 +28,7 @@ class Device:
         self.ports = [next(Device.port_gen) for _ in range(port_number)]
         self.links = []
         self.id = Device._counter
+        self.routing_table = []
 
         Device._counter += 1
 
@@ -93,3 +95,34 @@ class Device:
         
         self.links.remove(link_to_remove)
         device_b.links.remove(link_to_remove) 
+
+    def add_route(self, device_ip, mask, next_hop, route_type="static"):
+        for r in self.routing_table:
+            if r.dest == device_ip and r.mask == mask and r.entry_type == "static":
+                raise ValueError("Route exists")
+            
+        entry = RouteEntry(device_ip, mask, next_hop, route_type)
+        self.routing_table.append(entry)
+
+    @staticmethod
+    def count_beginning(ip_a, ip_b):
+        a = [f"{int(num):08b}" for num in ip_a.split(".")]
+        b = [f"{int(num):08b}" for num in ip_b.split(".")]
+        ctr = 0
+
+        for num_a, num_b in zip("".join(a), "".join(b)):
+            if num_a != num_b:
+                break
+
+            ctr += 1
+
+        return ctr
+            
+
+    def get_next(self, dest_ip):
+        masks = [(Device.count_beginning(p.ip, dest_ip), i) for i, p in enumerate(self.ports)]
+        masks.sort(key = lambda m: m[0], reverse=True)
+        index = masks[0][1]
+
+        return self.ports[index]
+

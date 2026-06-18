@@ -19,7 +19,7 @@ export default function AddItemForm({
     try {
       const created = await createDevice({
         name: name.trim(),
-        port_number: number.trim() ? parseInt(number, 10) : null,
+        port_number: number.trim() ? parseInt(number, 10) : 1,
         type: deviceType,
       });
       onAdd(created);
@@ -44,14 +44,14 @@ export default function AddItemForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <input
+        {deviceType === "router" && <input
           type="number"
           className="add-item-form__input"
           placeholder={numberPlaceholder}
           value={number}
           onChange={(e) => setNumber(e.target.value)}
           min="1"
-        />
+        />}
         <button type="submit" className="add-item-form__submit">
           Dodaj
         </button>
