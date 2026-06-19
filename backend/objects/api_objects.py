@@ -60,3 +60,9 @@ class CreateLinkRequest(BaseModel):
     bandwidth: int
     delay: int
     unit: str
+
+class RouteCreateRequest(BaseModel):
+    dest: str
+    mask: int
+    next_hop: str
+    entry_type: str = "static"
