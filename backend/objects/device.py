@@ -117,6 +117,9 @@ class Device:
         addr.IPv4Address(device_ip)
         addr.IPv4Address(next_hop)
 
+        if self.get_next(next_hop) is None:
+            raise ValueError("Next hop is unreachable")
+
         for r in self.routing_table:
             if r.dest == device_ip and r.mask == mask and r.entry_type == route_type:
                 raise ValueError("Route exists")
@@ -232,5 +235,13 @@ if __name__ == "__main__":
          print("    [SUKCES] System płynnie przeszedł na trasę zapasową (/23) po usunięciu wpisu /24!")
     else:
          print("    [BŁĄD] System nie wybrał trasy zapasowej!")
+
+    print("\n--- TEST 4: Walidacja L3 Reachability (Dodawanie nieosiągalnej trasy) ---")
+    try:
+        r1.add_route("5.5.5.0", 24, "99.99.99.99", route_type="static")
+        print("    [BŁĄD] Zabezpieczenie nie zadziałało! System pozwolił dodać 'osieroconą' trasę!")
+    except ValueError as e:
+        print(f"    Przechwycono błąd: {e}")
+        print("    [SUKCES] System poprawnie zablokował dodanie trasy bez fizycznego połączenia!")
 
     print("\n=== WSZYSTKIE TESTY ZAKOŃCZONE! MOŻNA WYSYŁAĆ NA PRODUKCJĘ! ===")
