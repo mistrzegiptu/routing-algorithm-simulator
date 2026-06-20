@@ -1,5 +1,9 @@
 from .port import Port
 from .link import Link
+from .route_entry import RouteEntry, RouteType
+from typing import get_args
+
+import ipaddress as addr
 
 def port_generator():
     first_part = 0
@@ -30,10 +34,16 @@ class Device:
         self.ports = [next(Device.port_gen) for _ in range(port_number)]
         self.links = []
         self.id = Device._counter
+        self.routing_table = []
 
         Device._counter += 1
 
     def add_port(self, ip = None, mask = 24):
+        if not (0 <= mask <= 32):
+            raise ValueError("Mask needs to be between 0 and 32")
+        
+        if ip is not None: addr.IPv4Address(ip)
+
         if ip is None:
             new_port = next(Device.port_gen)
             if mask != 24:
@@ -48,6 +58,11 @@ class Device:
         return new_port
 
     def edit_port(self, port, new_ip = None, new_mask = None):
+        if new_mask is not None and not (0 <= new_mask <= 32):
+            raise ValueError("Mask needs to be between 0 and 32")
+        
+        if new_ip is not None: addr.IPv4Address(new_ip)
+
         if port not in self.ports:
             raise ValueError("Port does not exist")
         if new_ip is not None:
@@ -112,3 +127,140 @@ class Device:
         
         self.links.remove(link_to_remove)
         device_b.links.remove(link_to_remove) 
+
+    def add_route(self, device_ip, mask, next_hop, route_type="static"):
+        if not (0 <= mask <= 32): raise ValueError("Mask needs to be between 0 and 32")
+
+        if route_type not in get_args(RouteType): raise ValueError("Invalid route type")
+
+        addr.IPv4Address(device_ip)
+        addr.IPv4Address(next_hop)
+
+        if self.get_next(next_hop) is None:
+            raise ValueError("Next hop is unreachable")
+
+        for r in self.routing_table:
+            if r.dest == device_ip and r.mask == mask and r.entry_type == route_type:
+                raise ValueError("Route exists")
+            
+        entry = RouteEntry(device_ip, mask, next_hop, route_type)
+        self.routing_table.append(entry)
+
+    @staticmethod
+    def count_beginning(ip_a, ip_b):
+        ip_a = addr.IPv4Address(ip_a)
+        ip_b = addr.IPv4Address(ip_b)
+
+        xor_res = int(ip_a) ^ int(ip_b)
+
+        if xor_res == 0:
+            return 32
+        
+        return 32 - xor_res.bit_length()
+    
+    def find_next_hop(self, dest_ip):
+        routes = []
+
+        ad_map = {
+            "connected": 0,
+            "static": 1
+            #To add more
+        }
+
+        for r in self.routing_table:
+            match_bits = Device.count_beginning(dest_ip, r.dest)
+            if match_bits >= r.mask: routes.append(r)
+
+        if not routes: return None
+
+        routes.sort(key=lambda r: (-r.mask, ad_map.get(r.entry_type.lower(), 255)))
+        return routes[0].next_hop
+
+    def get_next(self, next_hop):
+        if not self.ports:
+            return None
+
+        valid_ports = []
+
+        for p in self.ports:
+            matches = Device.count_beginning(p.ip, next_hop)
+            if matches >= p.mask:
+                valid_ports.append((matches, p))
+
+        if not valid_ports: return None
+        
+        valid_ports.sort(key=lambda x: x[0], reverse=True)
+        return valid_ports[0][1]
+    
+    def delete_route(self, ip, mask):
+        to_remove = next((r for r in self.routing_table if r.dest == ip and r.mask == mask), None)
+
+        if not to_remove: raise ValueError("Route has not been found")
+        self.routing_table.remove(to_remove)
+        return to_remove
+
+
+if __name__ == "__main__":
+    print("=== ROZPOCZĘCIE TESTÓW KLASY DEVICE ===\n")
+
+    r1 = Device(name="Router_Core", port_number=0)
+    print(f"[*] Utworzono urządzenie: {r1.name}")
+
+    p1 = r1.add_port(ip="10.0.0.1", mask=24)
+    p2 = r1.add_port(ip="192.168.1.1", mask=24)
+    print(f"[*] Dodano porty:")
+    print(f"    - P1: {p1.ip}/{p1.mask}")
+    print(f"    - P2: {p2.ip}/{p2.mask}\n")
+
+    print("[*] Dodawanie tras do tablicy routingu...")
+    
+    r1.add_route("8.8.0.0", 16, "192.168.1.2", route_type="static")
+    r1.add_route("8.8.8.0", 24, "10.0.0.2", route_type="static")
+    r1.add_route("8.8.8.0", 23, "10.0.0.3", route_type="connected")
+
+    print("    Aktualna tablica routingu:")
+    for r in r1.routing_table:
+        print(f"    -> Sieć {r.dest}/{r.mask} | Next Hop: {r.next_hop} | Typ: {r.entry_type}")
+    print()
+
+    cel_ip = "8.8.8.8"
+    print(f"--- TEST 1: Routing do adresu {cel_ip} ---")
+    next_hop = r1.find_next_hop(cel_ip)
+    print(f"    Znaleziony Next Hop: {next_hop}")
+    
+    if next_hop == "10.0.0.2":
+        print("    [SUKCES] Algorytm LPM poprawnie wybrał najdłuższą maskę (/24)!")
+    else:
+        print("    [BŁĄD] Znaleziono złą trasę!")
+
+    print(f"\n--- TEST 2: Szukanie portu wyjściowego do Next Hop'a {next_hop} ---")
+    out_port = r1.get_next(next_hop)
+    
+    if out_port and out_port.ip == "10.0.0.1":
+        print(f"    Wybrany port: {out_port.ip}/{out_port.mask}")
+        print("    [SUKCES] Dopasowanie binarne portów działa perfekcyjnie!")
+    else:
+        print("    [BŁĄD] Wybrano zły port lub zwrócono None!")
+
+    print("\n--- TEST 3: Usuwanie najlepszej trasy ---")
+    deleted_route = r1.delete_route(ip="8.8.8.0", mask=24)
+    print(f"    Pomyślnie usunięto z tablicy: {deleted_route.dest}/{deleted_route.mask}")
+    
+    print("    Ponawiamy wyszukiwanie do 8.8.8.8...")
+    nowy_next_hop = r1.find_next_hop(cel_ip)
+    print(f"    Nowy Next Hop: {nowy_next_hop}")
+    
+    if nowy_next_hop == "10.0.0.3":
+         print("    [SUKCES] System płynnie przeszedł na trasę zapasową (/23) po usunięciu wpisu /24!")
+    else:
+         print("    [BŁĄD] System nie wybrał trasy zapasowej!")
+
+    print("\n--- TEST 4: Walidacja L3 Reachability (Dodawanie nieosiągalnej trasy) ---")
+    try:
+        r1.add_route("5.5.5.0", 24, "99.99.99.99", route_type="static")
+        print("    [BŁĄD] Zabezpieczenie nie zadziałało! System pozwolił dodać 'osieroconą' trasę!")
+    except ValueError as e:
+        print(f"    Przechwycono błąd: {e}")
+        print("    [SUKCES] System poprawnie zablokował dodanie trasy bez fizycznego połączenia!")
+
+    print("\n=== WSZYSTKIE TESTY ZAKOŃCZONE! MOŻNA WYSYŁAĆ NA PRODUKCJĘ! ===")

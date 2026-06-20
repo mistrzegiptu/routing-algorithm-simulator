@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest
+from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest
 from objects.computer import Computer
 from objects.router import Router
 
@@ -66,6 +66,7 @@ def create_device(device_data: DeviceCreateRequest):
     kwargs = {}
     if device_data.name is not None:
         kwargs['name'] = device_data.name
+
     if device_data.port_number is not None:
         kwargs['port_number'] = device_data.port_number
     else:
@@ -129,6 +130,9 @@ def create_link(link_data: CreateLinkRequest):
 
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
+    if isinstance(device_a, Computer) and isinstance(device_b, Computer):
+        raise HTTPException(status_code=400, detail="Two computers cannot be connected directly")
+
     try:
         port_a_num = link_data.port_a_num
         port_b_num = link_data.port_b_num
@@ -181,3 +185,31 @@ def delete_link(link_id: int):
 def update_link(link_id: int, link_data: CreateLinkRequest):
     delete_link(link_id)
     return create_link(link_data)
+
+@app.post("/api/route/{device_id}")
+def add_route(route: RouteCreateRequest, device_id: int):
+    device = find_device(device_id)
+    if not device: raise HTTPException(status_code=404, detail="Device has been not found")
+
+    try:
+        device.add_route(route.dest, route.mask, route.next_hop, route.entry_type)
+        return {"message":"Route added"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@app.get("/api/route/{device_id}")
+def get_routes(device_id: int):
+    device = find_device(device_id)
+    if not device: raise HTTPException(status_code=404, detail="Device has been not found")
+    return {"routes": device.routing_table}
+
+@app.delete("/api/route/{device_id}")
+def delete_route(device_id: int, ip: str, mask: int):
+    device = find_device(device_id)
+    if not device: raise HTTPException(status_code=404, detail="Device has been not found")
+
+    try:
+        device.delete_route(ip, mask)
+        return {"message": "Route deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
