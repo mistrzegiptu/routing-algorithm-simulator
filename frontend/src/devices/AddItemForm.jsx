@@ -3,59 +3,57 @@ import { createDevice } from '../api/device_api.js';
 import './AddItemForm.css';
 
 export default function AddItemForm({
-  title,
+  label,
   namePlaceholder,
-  numberPlaceholder,
   deviceType,
   iconSrc,
+  accentVar = "--accent",
   onAdd
 }) {
   const [name, setName] = useState("");
-  const [number, setNumber] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    if (busy) return;
+    setBusy(true);
     try {
       const created = await createDevice({
         name: name.trim(),
-        port_number: number.trim() ? parseInt(number, 10) : null,
         type: deviceType,
       });
       onAdd(created);
       setName("");
-      setNumber("");
     } catch (error) {
       console.error(error);
       alert("Nie udało się dodać urządzenia.");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div className="add-item-form">
-      <h3 className="add-item-form__title">
-        {iconSrc && <img className="add-item-form__icon" src={iconSrc} alt={deviceType} />} {title}
-      </h3>
-      <form onSubmit={handleSubmit} className="add-item-form__form">
+    <form
+      onSubmit={handleSubmit}
+      className="add-item"
+      style={{ "--card-accent": `var(${accentVar})` }}
+    >
+      <div className="add-item__head">
+        {iconSrc && <img className="add-item__icon" src={iconSrc} alt={deviceType} />}
+        <span className="add-item__label">{label}</span>
+      </div>
+      <div className="add-item__row">
         <input
           type="text"
-          className="add-item-form__input"
+          className="add-item__input"
           placeholder={namePlaceholder}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <input
-          type="number"
-          className="add-item-form__input"
-          placeholder={numberPlaceholder}
-          value={number}
-          onChange={(e) => setNumber(e.target.value)}
-          min="1"
-        />
-        <button type="submit" className="add-item-form__submit">
-          Dodaj
+        <button type="submit" className="add-item__btn" disabled={busy} title={`Dodaj ${label.toLowerCase()}`}>
+          +
         </button>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }
