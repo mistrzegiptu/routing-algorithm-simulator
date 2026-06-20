@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import AddItemForm from "./devices/AddItemForm.jsx";
-import NetworkCanvas from "./devices/NetworkCanvas.jsx";
+import Sidebar from "./components/Sidebar.jsx";
+import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceConfigModal from "./devices/DeviceConfigModal.jsx";
 import { AddingLinkState } from "./models/AddingLinkState.js";
 import AddLinkModal from "./modals/AddLinkModal.jsx";
-import { CanvasProvider } from "./context/CanvasContext.jsx";
 import { saveLinkRoute, updateDevice } from "./api/device_api.js";
 import "./App.css";
-import routerImg from "../images/router.png";
-import computerImg from "../images/computer.png";
 
 function App() {
   const [devices, setDevices] = useState([]);
@@ -20,11 +17,13 @@ function App() {
   const [sourceDevice, setSourceDevice] = useState(null);
   const [destinationDevice, setDestinationDevice] = useState(null);
 
+  const [showInterfaceIps, setShowInterfaceIps] = useState(true);
+
   const handleAddDevice = (created) => {
     setDevices(prev => {
       const index = prev.length;
-      const x = 60 + (index % 5) * 180;
-      const y = 60 + Math.floor(index / 5) * 220;
+      const x = 80 + (index % 5) * 200;
+      const y = 80 + Math.floor(index / 5) * 180;
       return [...prev, { ...created, x, y }];
     });
   };
@@ -56,8 +55,6 @@ function App() {
       }
       setDestinationDevice(id);
       setAddingLinkState(AddingLinkState.PORTS_SELECTED);
-    } else {
-      setSelectedDeviceId(id);
     }
   };
 
@@ -69,16 +66,42 @@ function App() {
 
   const saveLink = async (newLinkData) => {
     try {
-      const savedLink = await saveLinkRoute(newLinkData);
-      setLinks(prev => [...prev, { ...newLinkData, id: savedLink.id }]);
+      const saved = await saveLinkRoute(newLinkData);
+
+      // Routers may have grown a fresh interface; sync both devices' state.
+      setDevices(prev =>
+        prev.map(d => {
+          if (saved.device_a && d.id === saved.device_a.id) return { ...d, ...saved.device_a };
+          if (saved.device_b && d.id === saved.device_b.id) return { ...d, ...saved.device_b };
+          return d;
+        })
+      );
+
+      setLinks(prev => [...prev, {
+        id: saved.id,
+        sourceId: saved.device_a_id,
+        destId: saved.device_b_id,
+        sourcePort: saved.port_a_num,
+        destPort: saved.port_b_num,
+        bandwidth: saved.bandwidth,
+        delay: saved.delay,
+        bandwidthUnit: saved.unit,
+      }]);
       resetLinkSelection();
     } catch (error) {
       console.error("Error saving link:", error);
+      alert("Nie udało się dodać połączenia.");
     }
   };
 
   const handleCloseConfig = () => {
     setSelectedDeviceId(null);
+  };
+
+  const handleConfigureDevice = (id) => {
+    if (addingLinkState === AddingLinkState.NORMAL) {
+      setSelectedDeviceId(id);
+    }
   };
 
   const handleSaveConfig = async (id, updatedData) => {
@@ -116,50 +139,29 @@ function App() {
   };
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
-  const isSelecting =
-    addingLinkState === AddingLinkState.SELECTING_SOURCE ||
-    addingLinkState === AddingLinkState.SELECTING_DESTINATION;
 
   return (
-    <div className="app-root" style={{ cursor: isSelecting ? 'crosshair' : 'default' }}>
-      <h1>Routing Algorithms Simulator</h1>
-
-      <AddItemForm
-        title="Dodaj router"
-        namePlaceholder="Nazwa routera"
-        numberPlaceholder="Liczba portów"
-        deviceType="router"
-        iconSrc={routerImg}
-        onAdd={handleAddDevice}
-      />
-      <AddItemForm
-        title="Dodaj komputer"
-        namePlaceholder="Nazwa komputera"
-        numberPlaceholder="Liczba portów"
-        deviceType="computer"
-        iconSrc={computerImg}
-        onAdd={handleAddDevice}
+    <div className="app-root">
+      <Sidebar
+        onAddDevice={handleAddDevice}
+        addingLinkState={addingLinkState}
+        onToggleAddLink={addLinkHandler}
+        showInterfaceIps={showInterfaceIps}
+        onToggleInterfaceIps={() => setShowInterfaceIps(v => !v)}
       />
 
-      <div>
-        {addingLinkState === AddingLinkState.SELECTING_SOURCE
-          ? "Selecting source device"
-          : addingLinkState === AddingLinkState.SELECTING_DESTINATION
-            ? "Selecting destination device"
-            : ""}
-      </div>
-      <button onClick={addLinkHandler}>
-        {addingLinkState === AddingLinkState.NORMAL ? "Dodaj połączenie" : "Anuluj"}
-      </button>
-
-      <CanvasProvider>
-        <NetworkCanvas
+      <main className="app-canvas-area">
+        <TopologyCanvas
           devices={devices}
           links={links}
+          addingLinkState={addingLinkState}
+          sourceDeviceId={sourceDevice}
+          showInterfaceIps={showInterfaceIps}
           onUpdateDevicePosition={handleUpdateDevicePosition}
           onSelectDevice={handleSelectDevice}
+          onConfigureDevice={handleConfigureDevice}
         />
-      </CanvasProvider>
+      </main>
 
       {selectedDeviceId !== null && (
         <DeviceConfigModal
@@ -173,6 +175,8 @@ function App() {
         <AddLinkModal
           sourceId={sourceDevice}
           destId={destinationDevice}
+          sourceName={devices.find(d => d.id === sourceDevice)?.name}
+          destName={devices.find(d => d.id === destinationDevice)?.name}
           onAddLink={saveLink}
           onClose={resetLinkSelection}
         />

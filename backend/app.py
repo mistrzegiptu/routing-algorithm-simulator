@@ -69,6 +69,9 @@ def create_device(device_data: DeviceCreateRequest):
 
     if device_data.port_number is not None:
         kwargs['port_number'] = device_data.port_number
+    else:
+        # Option A: routers start empty and grow on connect; computers get one NIC.
+        kwargs['port_number'] = 0 if device_data.type == "router" else 1
 
     device_cls = DEVICE_CLASSES[device_data.type]
     new_device = device_cls(**kwargs)
@@ -131,7 +134,14 @@ def create_link(link_data: CreateLinkRequest):
         raise HTTPException(status_code=400, detail="Two computers cannot be connected directly")
 
     try:
-        link = device_a.add_link(device_b, link_data.port_a_num, link_data.port_b_num, link_data.bandwidth, link_data.delay, link_data.unit)
+        port_a_num = link_data.port_a_num
+        port_b_num = link_data.port_b_num
+        if port_a_num is None:
+            port_a_num = device_a.allocate_link_port()
+        if port_b_num is None:
+            port_b_num = device_b.allocate_link_port()
+
+        link = device_a.add_link(device_b, port_a_num, port_b_num, link_data.bandwidth, link_data.delay, link_data.unit)
         links_db.append(link)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -144,7 +154,10 @@ def create_link(link_data: CreateLinkRequest):
         "port_b_num": link.port_b_num,
         "bandwidth": link.bandwidth,
         "delay": link.delay,
-        "unit": link.unit
+        "unit": link.unit,
+        # Fresh device state so the client can render newly allocated interfaces.
+        "device_a": serialize_device(device_a),
+        "device_b": serialize_device(device_b),
     }
 
 

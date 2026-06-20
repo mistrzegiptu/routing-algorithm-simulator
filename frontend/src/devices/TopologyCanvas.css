@@ -1,0 +1,32 @@
+.topology {
+    width: 100%;
+    height: 100%;
+}
+
+.topology--linking .react-flow__pane {
+    cursor: crosshair;
+}
+
+/* React Flow control & minimap theming */
+.topology .react-flow__controls {
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+}
+
+.topology .react-flow__controls-button {
+    background: var(--bg-panel-2);
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text);
+    fill: var(--text);
+}
+
+.topology .react-flow__controls-button:hover {
+    background: var(--bg-elev);
+}
+
+.topology .react-flow__minimap {
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}

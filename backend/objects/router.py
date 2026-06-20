@@ -1,7 +1,9 @@
 from .device import Device
 
 class Router(Device):
-    def __init__(self, name = None, port_number = 1):
+    dynamic_ports = True
+
+    def __init__(self, name = None, port_number = 0):
         super().__init__(name, port_number)
 
 if __name__ == "__main__":
