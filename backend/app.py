@@ -67,9 +67,7 @@ def create_device(device_data: DeviceCreateRequest):
     if device_data.name is not None:
         kwargs['name'] = device_data.name
 
-    if device_data.type == "computer":
-        kwargs['port_number'] = 1
-    elif device_data.port_number is not None:
+    if device_data.port_number is not None:
         kwargs['port_number'] = device_data.port_number
 
     device_cls = DEVICE_CLASSES[device_data.type]
@@ -198,7 +196,7 @@ def delete_route(device_id: int, ip: str, mask: int):
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
 
     try:
-        device.delete_static_route(ip, mask)
+        device.delete_route(ip, mask)
         return {"message": "Route deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

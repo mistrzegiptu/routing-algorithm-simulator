@@ -1,6 +1,9 @@
 from .port import Port
 from .link import Link
-from .route_entry import RouteEntry
+from .route_entry import RouteEntry, RouteType
+from typing import get_args
+
+import ipaddress as addr
 
 def port_generator():
     first_part = 0
@@ -33,6 +36,11 @@ class Device:
         Device._counter += 1
 
     def add_port(self, ip = None, mask = 24):
+        if not (0 <= mask <= 32):
+            raise ValueError("Mask needs to be between 0 and 32")
+        
+        if ip is not None: addr.IPv4Address(ip)
+
         if ip is None:
             new_port = next(Device.port_gen)
             if mask != 24:
@@ -47,6 +55,11 @@ class Device:
         return new_port
 
     def edit_port(self, port, new_ip = None, new_mask = None):
+        if new_mask is not None and not (0 <= new_mask <= 32):
+            raise ValueError("Mask needs to be between 0 and 32")
+        
+        if new_ip is not None: addr.IPv4Address(new_ip)
+
         if port not in self.ports:
             raise ValueError("Port does not exist")
         if new_ip is not None:
@@ -97,6 +110,13 @@ class Device:
         device_b.links.remove(link_to_remove) 
 
     def add_route(self, device_ip, mask, next_hop, route_type="static"):
+        if not (0 <= mask <= 32): raise ValueError("Mask needs to be between 0 and 32")
+
+        if route_type not in get_args(RouteType): raise ValueError("Invalid route type")
+
+        addr.IPv4Address(device_ip)
+        addr.IPv4Address(next_hop)
+
         for r in self.routing_table:
             if r.dest == device_ip and r.mask == mask and r.entry_type == route_type:
                 raise ValueError("Route exists")
@@ -106,17 +126,15 @@ class Device:
 
     @staticmethod
     def count_beginning(ip_a, ip_b):
-        a = [f"{int(num):08b}" for num in ip_a.split(".")]
-        b = [f"{int(num):08b}" for num in ip_b.split(".")]
-        ctr = 0
+        ip_a = addr.IPv4Address(ip_a)
+        ip_b = addr.IPv4Address(ip_b)
 
-        for num_a, num_b in zip("".join(a), "".join(b)):
-            if num_a != num_b:
-                break
+        xor_res = int(ip_a) ^ int(ip_b)
 
-            ctr += 1
-
-        return ctr
+        if xor_res == 0:
+            return 32
+        
+        return 32 - xor_res.bit_length()
     
     def find_next_hop(self, dest_ip):
         routes = []
@@ -133,21 +151,27 @@ class Device:
 
         if not routes: return None
 
-        routes.sort(key=lambda r: (r.mask, -ad_map.get(r.entry_type.lower(), 255)), reverse=True)
+        routes.sort(key=lambda r: (-r.mask, ad_map.get(r.entry_type.lower(), 255)))
         return routes[0].next_hop
 
     def get_next(self, next_hop):
         if not self.ports:
             return None
 
-        masks = [(Device.count_beginning(p.ip, next_hop), i) for i, p in enumerate(self.ports)]
-        masks.sort(key = lambda m: m[0], reverse=True)
-        index = masks[0][1]
+        valid_ports = []
 
-        return self.ports[index]
+        for p in self.ports:
+            matches = Device.count_beginning(p.ip, next_hop)
+            if matches >= p.mask:
+                valid_ports.append((matches, p))
+
+        if not valid_ports: return None
+        
+        valid_ports.sort(key=lambda x: x[0], reverse=True)
+        return valid_ports[0][1]
     
-    def delete_static_route(self, ip, mask):
-        to_remove = next((r for r in self.routing_table if r.dest == ip and r.mask == mask and r.entry_type == "static"), None)
+    def delete_route(self, ip, mask):
+        to_remove = next((r for r in self.routing_table if r.dest == ip and r.mask == mask), None)
 
         if not to_remove: raise ValueError("Route has not been found")
         self.routing_table.remove(to_remove)
@@ -157,68 +181,56 @@ class Device:
 if __name__ == "__main__":
     print("=== ROZPOCZĘCIE TESTÓW KLASY DEVICE ===\n")
 
-    # 1. Tworzymy urządzenie (odpalamy z port_number=0, żeby dodać własne, przewidywalne porty)
     r1 = Device(name="Router_Core", port_number=0)
     print(f"[*] Utworzono urządzenie: {r1.name}")
 
-    # 2. Dodajemy porty
     p1 = r1.add_port(ip="10.0.0.1", mask=24)
     p2 = r1.add_port(ip="192.168.1.1", mask=24)
     print(f"[*] Dodano porty:")
     print(f"    - P1: {p1.ip}/{p1.mask}")
     print(f"    - P2: {p2.ip}/{p2.mask}\n")
 
-    # 3. Wypełniamy tablicę routingu
     print("[*] Dodawanie tras do tablicy routingu...")
     
-    # Trasa nr 1: Ogólna trasa statyczna (Maska /16)
     r1.add_route("8.8.0.0", 16, "192.168.1.2", route_type="static")
-    
-    # Trasa nr 2: Dokładniejsza trasa statyczna (Maska /24) - LPM powinno wybrać tę!
     r1.add_route("8.8.8.0", 24, "10.0.0.2", route_type="static")
-    
-    # Trasa nr 3: Trasa dynamiczna do tej samej sieci co wyżej (żeby sprawdzić Dystans Administracyjny)
-    # Symulujemy, że router usłyszał o trasie z jakiegoś protokołu.
-    r1.add_route("8.8.8.0", 24, "10.0.0.3", route_type="ospf")
+    r1.add_route("8.8.8.0", 23, "10.0.0.3", route_type="connected")
 
     print("    Aktualna tablica routingu:")
     for r in r1.routing_table:
         print(f"    -> Sieć {r.dest}/{r.mask} | Next Hop: {r.next_hop} | Typ: {r.entry_type}")
     print()
 
-    # --- TEST 1: Wyszukiwanie Trasy (LPM i AD) ---
     cel_ip = "8.8.8.8"
     print(f"--- TEST 1: Routing do adresu {cel_ip} ---")
     next_hop = r1.find_next_hop(cel_ip)
     print(f"    Znaleziony Next Hop: {next_hop}")
     
-    # Sprawdzamy czy to prawda: LPM powinno wybrać maskę /24, a z dwóch tras /24 AD powinno ubić OSPF i wybrać "static"
     if next_hop == "10.0.0.2":
-        print("    [SUKCES] Algorytmy LPM i Dystansu Administracyjnego działają poprawnie!")
+        print("    [SUKCES] Algorytm LPM poprawnie wybrał najdłuższą maskę (/24)!")
     else:
         print("    [BŁĄD] Znaleziono złą trasę!")
 
-    # --- TEST 2: Wybieranie fizycznego portu na podstawie Next Hop ---
     print(f"\n--- TEST 2: Szukanie portu wyjściowego do Next Hop'a {next_hop} ---")
     out_port = r1.get_next(next_hop)
-    print(f"    Wybrany port: {out_port.ip}/{out_port.mask}")
     
-    if out_port.ip == "10.0.0.1":
+    if out_port and out_port.ip == "10.0.0.1":
+        print(f"    Wybrany port: {out_port.ip}/{out_port.mask}")
         print("    [SUKCES] Dopasowanie binarne portów działa perfekcyjnie!")
     else:
-        print("    [BŁĄD] Wybrano zły port!")
+        print("    [BŁĄD] Wybrano zły port lub zwrócono None!")
 
-    # --- TEST 3: Usuwanie trasy statycznej ---
-    print("\n--- TEST 3: Usuwanie najlepszej trasy statycznej ---")
-    deleted_route = r1.delete_static_route(ip="8.8.8.0", mask=24)
+    print("\n--- TEST 3: Usuwanie najlepszej trasy ---")
+    deleted_route = r1.delete_route(ip="8.8.8.0", mask=24)
     print(f"    Pomyślnie usunięto z tablicy: {deleted_route.dest}/{deleted_route.mask}")
     
     print("    Ponawiamy wyszukiwanie do 8.8.8.8...")
     nowy_next_hop = r1.find_next_hop(cel_ip)
     print(f"    Nowy Next Hop: {nowy_next_hop}")
     
-    # Ponieważ usunęliśmy statyczną /24, najlepsza pozostała to nasza oszukana OSPF /24 (złym AD 255, ale maska /24 wygrywa z /16)
     if nowy_next_hop == "10.0.0.3":
-         print("    [SUKCES] System płynnie przeszedł na trasę awaryjną po usunięciu wpisu statycznego!")
+         print("    [SUKCES] System płynnie przeszedł na trasę zapasową (/23) po usunięciu wpisu /24!")
+    else:
+         print("    [BŁĄD] System nie wybrał trasy zapasowej!")
 
     print("\n=== WSZYSTKIE TESTY ZAKOŃCZONE! MOŻNA WYSYŁAĆ NA PRODUKCJĘ! ===")

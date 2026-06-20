@@ -1,6 +1,7 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field, IPvAnyAddress
 from typing import Optional, List
 import ipaddress
+from .route_entry import RouteType
 
 DEVICE_TYPES = {"router", "computer"}
 
@@ -63,6 +64,15 @@ class CreateLinkRequest(BaseModel):
 
 class RouteCreateRequest(BaseModel):
     dest: str
-    mask: int
+    mask: int = Field(ge=0, le=32)
     next_hop: str
-    entry_type: str = "static"
+    entry_type: RouteType = "static"
+
+    @field_validator('dest', 'next_hop')
+    @classmethod
+    def validate_ip(cls, v):
+        try:
+            ipaddress.IPv4Address(v)
+        except ValueError:
+            raise ValueError('Invalid IPv4 address format')
+        return v
