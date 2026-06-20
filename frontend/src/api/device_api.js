@@ -1,9 +1,8 @@
 const URL = "http://localhost:5000/api";
 
-export async function createDevice({ name, port_number, type }) {
+export async function createDevice({ name, type }) {
     const payload = { type };
     if (name) payload.name = name;
-    if (port_number) payload.port_number = port_number;
 
     const res = await fetch(`${URL}/devices`, {
         method: "POST",
@@ -31,28 +30,12 @@ export async function updateDevice(deviceId, updatedData) {
     return res.json();
 }
 
-export async function getAvailablePorts(deviceId) {
-    try {
-        const res = await fetch(`${URL}/devices/${deviceId}/available-ports`);
-        if (!res.ok) {
-            throw new Error(`Failed to fetch available ports for device ${deviceId}`);
-        }
-
-        const data = await res.json();
-        return data.available_ports;
-    } catch (err) {
-        console.error("Err: ", err);
-        return null;
-    }
-}
-
 export async function saveLinkRoute(newLink) {
     try {
+        // Interfaces are allocated automatically by the backend (Option A).
         const payload = {
             device_a_id: newLink.sourceId,
             device_b_id: newLink.destId,
-            port_a_num: newLink.sourcePort,
-            port_b_num: newLink.destPort,
             bandwidth: newLink.bandwidth,
             delay: newLink.delay,
             unit: newLink.bandwidthUnit

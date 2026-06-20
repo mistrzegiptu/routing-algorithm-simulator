@@ -20,6 +20,9 @@ class Device:
     ip_address_pool = set()
     port_gen = port_generator()
 
+    # Routers grow new interfaces on demand; computers keep a single fixed NIC.
+    dynamic_ports = False
+
     def __init__(self, name = None, port_number = 1):
         class_name = self.__class__.__name__
         self.name = f"{class_name}_{Device._counter}" if name is None else name
@@ -72,6 +75,22 @@ class Device:
             if link.device_b == self.id and link.port_b_num == port_number:
                 return False
         return True
+
+    def allocate_link_port(self):
+        """Return an interface index usable for a new link.
+
+        Reuses the first free interface; if none is free and the device
+        supports dynamic interfaces (routers), a fresh one is created.
+        """
+        for port_num in range(self.port_number):
+            if self.check_port_availability(port_num):
+                return port_num
+
+        if self.dynamic_ports:
+            self.add_port()
+            return self.port_number - 1
+
+        raise ValueError(f"Device '{self.name}' has no available interface")
 
     def add_link(self, device_b, port_a_num, port_b_num, bandwidth, delay, unit):
         if port_a_num >= self.port_number or port_b_num >= device_b.port_number:

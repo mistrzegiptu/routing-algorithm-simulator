@@ -1,0 +1,19 @@
+.link-edge__path {
+    stroke: var(--link);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.link-edge__ip {
+    position: absolute;
+    pointer-events: none;
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 5px;
+    color: var(--link);
+    background: rgba(13, 16, 24, 0.92);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    white-space: nowrap;
+}

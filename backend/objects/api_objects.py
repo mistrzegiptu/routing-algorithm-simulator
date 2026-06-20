@@ -54,9 +54,10 @@ class DeviceUpdateRequest(BaseModel):
 class CreateLinkRequest(BaseModel):
     device_a_id: int
     device_b_id: int
-    port_a_num: int
-    port_b_num: int
+    # Interfaces are allocated automatically when omitted (Option A port model).
+    port_a_num: Optional[int] = None
+    port_b_num: Optional[int] = None
 
-    bandwidth: int
-    delay: int
-    unit: str
+    bandwidth: Optional[int] = None
+    delay: int = 10
+    unit: str = "Mbps"
