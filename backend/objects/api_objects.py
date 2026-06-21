@@ -78,3 +78,15 @@ class RouteCreateRequest(BaseModel):
             raise ValueError('Invalid IPv4 address format')
         return v
 
+class RouteDeleteRequest(BaseModel):
+    dest: str
+    mask: int = Field(ge=0, le=32)
+
+    @field_validator('dest')
+    @classmethod
+    def validate_ip(cls, v):
+        try:
+            ipaddress.IPv4Address(v)
+        except ValueError:
+            raise ValueError('Invalid IPv4 address format')
+        return v

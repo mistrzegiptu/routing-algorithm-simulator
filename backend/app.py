@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest
+from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest, RouteDeleteRequest
 from objects.computer import Computer
 from objects.router import Router
 
@@ -204,12 +204,12 @@ def get_routes(device_id: int):
     return {"routes": device.routing_table}
 
 @app.delete("/api/route/{device_id}")
-def delete_route(device_id: int, ip: str, mask: int):
+def delete_route(device_id: int, route_data: RouteDeleteRequest):
     device = find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
 
     try:
-        device.delete_route(ip, mask)
+        device.delete_route(route_data.dest, route_data.mask)
         return {"message": "Route deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

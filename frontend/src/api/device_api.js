@@ -32,7 +32,6 @@ export async function updateDevice(deviceId, updatedData) {
 
 export async function saveLinkRoute(newLink) {
     try {
-        // Interfaces are allocated automatically by the backend (Option A).
         const payload = {
             device_a_id: newLink.sourceId,
             device_b_id: newLink.destId,
@@ -51,6 +50,80 @@ export async function saveLinkRoute(newLink) {
         }
         const data = await res.json();
         return data;
+    } catch (err) {
+        console.error("Err: ", err);
+        throw err;
+    }
+}
+
+export async function getRouteTable(id) {
+    try {
+        const res = await fetch(`${URL}/route/${id}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" }
+        })
+
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            const error = new Error("Failed to update device");
+            error.detail = errorData.detail;
+            throw error;
+        }
+
+        const data = await res.json();
+        return data;
+    } catch(err) {
+        console.error("Err: ", err);
+        throw err;
+    }
+}
+
+export async function addRoute(id, newRoute) {
+    try {
+        const payload = {
+            dest: newRoute.dest,
+            mask: newRoute.mask,
+            next_hop: newRoute.next_hop,
+            entry_type: newRoute.entry_type
+        };
+
+        const res = await fetch(`${URL}/route/${id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            throw new Error(`Failed to add route`);
+        }
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.error("Err: ", err);
+        throw err;
+    }
+}
+
+export async function deleteRoute(id, toDelete) {
+    try {
+        const payload = {
+            dest: toDelete.ip,
+            mask: toDelete.mask
+        };
+
+        const res = await fetch(`${URL}/route/${id}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            const error = new Error("Failed to update device");
+            error.detail = errorData.detail;
+            throw error;
+        }
+
+        return { success: true };
     } catch (err) {
         console.error("Err: ", err);
         throw err;
