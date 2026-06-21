@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Sidebar from "./components/Sidebar.jsx";
 import TopologyCanvas from "./devices/TopologyCanvas.jsx";
-import DeviceConfigModal from "./devices/DeviceConfigModal.jsx";
+import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
 import { AddingLinkState } from "./models/AddingLinkState.js";
 import AddLinkModal from "./modals/AddLinkModal.jsx";
 import { saveLinkRoute, updateDevice } from "./api/device_api.js";
@@ -164,7 +164,7 @@ function App() {
       </main>
 
       {selectedDeviceId !== null && (
-        <DeviceConfigModal
+        <DeviceDetailsPanel
           device={selectedDevice}
           onClose={handleCloseConfig}
           onSave={handleSaveConfig}

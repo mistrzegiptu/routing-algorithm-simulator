@@ -1,0 +1,282 @@
+.right-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 15px 20px;
+  background-color: #0b1222;
+  border-bottom: 2px solid #2d3445;
+}
+
+.title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.ddp-title {
+  font-size: 22px;
+  font-weight: bold;
+  color: white;
+  margin: 0 0 5px 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #bbb;
+  margin: 0;
+}
+
+.close-btn {
+  background-color: #555;
+  color: white;
+  border: none;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  margin: 0;
+}
+
+.close-btn:hover {
+  background-color: #666;
+}
+
+.right-panel-content {
+  padding: 20px;
+  color: #e2e8f0;
+}
+
+.panel-section {
+  margin-bottom: 20px;
+}
+
+.panel-section h3 {
+  font-size: 16px;
+  color: #ffffff;
+  margin-top: 0;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #334155;
+}
+
+.device-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; 
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-field span {
+  font-size: 12px;
+  font-weight: bold;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+input[type="text"],
+input[type="number"] {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+  border-color: #38bdf8;
+}
+
+/* --- LISTA PORTÓW --- */
+.ports-list h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.port-item {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.port-tag {
+  display: inline-block;
+  background-color: #38bdf8;
+  color: #0f172a;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.port-inputs {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.port-inputs label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #94a3b8;
+  flex: 1;
+}
+
+.port-inputs input {
+  width: 100%;
+}
+
+.btn-primary {
+  background-color: #38bdf8;
+  color: #0f172a;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  font-weight: bold;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #0284c7;
+  color: white;
+}
+
+hr {
+  border: none;
+  border-top: 2px dashed #334155;
+  margin: 25px 0;
+}
+
+/* --- TABLICA ROUTINGU --- */
+.routing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.routing-table th {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 2px solid #334155;
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.routing-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #1e293b;
+  color: #f8fafc;
+}
+
+.empty-text {
+  color: #64748b;
+  font-style: italic;
+}
+
+/* --- ETYKIETY W TABELI ROUTINGU (BADGES) --- */
+.route-type {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.route-type.connected {
+  background-color: #4caf50;
+  color: white;
+}
+
+.route-type.static {
+  background-color: #38bdf8;
+  color: #080a10;
+}
+
+/* --- FORMULARZ DODAWANIA TRASY (UKŁAD PIONOWY) --- */
+.add-route-form {
+  margin-top: 30px;
+  background-color: #1a1e26;
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid #2d3445;
+}
+
+.add-route-form h4 {
+  margin: 0 0 15px 0;
+  color: #e2e8f0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.add-route-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.add-route-inputs input[type="text"],
+.add-route-inputs input[type="number"] {
+  width: 100%;
+  background-color: #0f1218;
+  border: 1px solid #2d3445;
+  color: #f8fafc;
+  padding: 12px 15px;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box; /* Zapewnia, że padding nie rozpycha inputa poza 100% szerokości */
+}
+
+.add-route-inputs input[type="text"]:focus,
+.add-route-inputs input[type="number"]:focus {
+  border-color: #38bdf8;
+}
+
+.route-slash {
+  display: none; /* Ukrywamy slash w układzie pionowym */
+}
+
+.add-route-inputs .btn-primary {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+}
+
+.route-cell-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.delete-route-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.delete-route-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}
