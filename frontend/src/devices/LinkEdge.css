@@ -17,3 +17,20 @@
     border: 1px solid rgba(52, 211, 153, 0.35);
     white-space: nowrap;
 }
+
+.link-edge__path--highlighted {
+    stroke: #38bdf8 !important;
+    stroke-width: 3.5 !important;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+    animation: link-edge-pulse 1.5s ease-in-out infinite;
+}
+
+.link-edge__path--dimmed {
+    stroke-opacity: 0.25;
+}
+
+@keyframes link-edge-pulse {
+    0%, 100% { stroke-opacity: 0.7; }
+    50% { stroke-opacity: 1; }
+}
+

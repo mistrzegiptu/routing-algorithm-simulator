@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -6,12 +6,15 @@ import {
   Controls,
   MiniMap,
   useNodesState,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import DeviceNode from './DeviceNode.jsx';
 import LinkEdge from './LinkEdge.jsx';
+import PingOverlay from '../models/PingOverlay.jsx';
 import { AddingLinkState } from '../models/AddingLinkState.js';
+import { PingState } from '../models/PingState.js';
 import { portCidr } from '../utils/format.js';
 import './TopologyCanvas.css';
 
@@ -27,14 +30,27 @@ export default function TopologyCanvas({
   onUpdateDevicePosition,
   onSelectDevice,
   onConfigureDevice,
+  // Ping props
+  pingState = PingState.NORMAL,
+  pingSourceId = null,
+  highlightedLinkIds = [],
+  pingHops = null,
+  pingAnimating = false,
+  onPingAnimationComplete = null,
 }) {
   const isLinking =
     addingLinkState === AddingLinkState.SELECTING_SOURCE ||
     addingLinkState === AddingLinkState.SELECTING_DESTINATION;
 
+  const isPinging =
+    pingState === PingState.SELECTING_SOURCE ||
+    pingState === PingState.SELECTING_DESTINATION;
+
+  const isInteractive = isLinking || isPinging;
+
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
 
-  // Devices are the source of truth; rebuild nodes when they (or link state) change.
+  // Devices are the source of truth; rebuild nodes when they (or link/ping state) change.
   useEffect(() => {
     setNodes(devices.map((d) => ({
       id: String(d.id),
@@ -42,16 +58,17 @@ export default function TopologyCanvas({
       position: { x: d.x, y: d.y },
       data: {
         device: d,
-        linking: isLinking,
-        isSource: d.id === sourceDeviceId,
+        linking: isInteractive,
+        isSource: d.id === sourceDeviceId || d.id === pingSourceId,
         showIp: showInterfaceIps,
       },
     })));
-  }, [devices, isLinking, sourceDeviceId, showInterfaceIps, setNodes]);
+  }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, setNodes]);
 
   const edges = useMemo(() => links.map((link) => {
     const a = devices.find((d) => d.id === link.sourceId);
     const b = devices.find((d) => d.id === link.destId);
+    const isHighlighted = highlightedLinkIds.includes(link.id);
     return {
       id: String(link.id),
       source: String(link.sourceId),
@@ -61,13 +78,15 @@ export default function TopologyCanvas({
         sourceCidr: portCidr(a?.ports?.[link.sourcePort]),
         targetCidr: portCidr(b?.ports?.[link.destPort]),
         showIps: showInterfaceIps,
+        highlighted: isHighlighted,
+        dimmed: highlightedLinkIds.length > 0 && !isHighlighted,
       },
     };
-  }), [links, devices, showInterfaceIps]);
+  }), [links, devices, showInterfaceIps, highlightedLinkIds]);
 
   const handleNodeClick = useCallback((_, node) => {
-    if (isLinking) onSelectDevice(Number(node.id));
-  }, [isLinking, onSelectDevice]);
+    if (isInteractive) onSelectDevice(Number(node.id));
+  }, [isInteractive, onSelectDevice]);
 
   const handleNodeDoubleClick = useCallback((_, node) => {
     onConfigureDevice(Number(node.id));
@@ -78,7 +97,7 @@ export default function TopologyCanvas({
   }, [onUpdateDevicePosition]);
 
   return (
-    <div className={`topology ${isLinking ? 'topology--linking' : ''}`}>
+    <div className={`topology ${isInteractive ? 'topology--linking' : ''}`}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -91,7 +110,7 @@ export default function TopologyCanvas({
         minZoom={0.3}
         maxZoom={2.5}
         nodesConnectable={false}
-        elementsSelectable={!isLinking}
+        elementsSelectable={!isInteractive}
         proOptions={{ hideAttribution: true }}
         fitView
         fitViewOptions={{ padding: 0.4, maxZoom: 1.2 }}
@@ -105,6 +124,15 @@ export default function TopologyCanvas({
           maskColor="rgba(8, 10, 16, 0.7)"
           style={{ background: 'var(--bg-panel-2)', border: '1px solid var(--border)' }}
         />
+
+        {/* Ping animation overlay rendered inside ReactFlow viewport */}
+        {pingAnimating && pingHops && pingHops.length > 0 && (
+          <PingOverlay
+            hops={pingHops}
+            nodes={nodes}
+            onComplete={onPingAnimationComplete}
+          />
+        )}
       </ReactFlow>
     </div>
   );

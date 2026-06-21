@@ -144,3 +144,24 @@
 .sidebar__switch.is-on .sidebar__switch-knob {
     transform: translateX(16px);
 }
+
+.sidebar__ping-btn {
+    border-color: var(--ping, #0ea5e9);
+}
+
+.sidebar__ping-btn:hover {
+    border-color: var(--ping, #38bdf8);
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.sidebar__ping-btn.is-active {
+    border-color: var(--ping, #38bdf8);
+    background: rgba(14, 165, 233, 0.15);
+    color: var(--ping, #38bdf8);
+}
+
+.sidebar__hint--ping {
+    color: var(--ping, #38bdf8);
+    background: rgba(14, 165, 233, 0.1);
+}
+

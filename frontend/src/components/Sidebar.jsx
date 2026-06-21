@@ -1,5 +1,6 @@
 import AddItemForm from "../devices/AddItemForm.jsx";
 import { AddingLinkState } from "../models/AddingLinkState.js";
+import { PingState } from "../models/PingState.js";
 import routerImg from "../../images/router.png";
 import computerImg from "../../images/computer.png";
 import "./Sidebar.css";
@@ -10,8 +11,11 @@ export default function Sidebar({
   onToggleAddLink,
   showInterfaceIps,
   onToggleInterfaceIps,
+  pingState = PingState.NORMAL,
+  onTogglePing,
 }) {
   const isLinking = addingLinkState !== AddingLinkState.NORMAL;
+  const isPinging = pingState !== PingState.NORMAL;
 
   const linkHint =
     addingLinkState === AddingLinkState.SELECTING_SOURCE
@@ -19,6 +23,15 @@ export default function Sidebar({
       : addingLinkState === AddingLinkState.SELECTING_DESTINATION
         ? "Kliknij urządzenie docelowe"
         : null;
+
+  const pingHint =
+    pingState === PingState.SELECTING_SOURCE
+      ? "Kliknij urządzenie źródłowe"
+      : pingState === PingState.SELECTING_DESTINATION
+        ? "Kliknij urządzenie docelowe"
+        : pingState === PingState.ANIMATING
+          ? "Ping w toku…"
+          : null;
 
   return (
     <aside className="sidebar">
@@ -63,6 +76,17 @@ export default function Sidebar({
         </section>
 
         <section className="sidebar__section">
+          <h2 className="sidebar__heading">Narzędzia</h2>
+          <button
+            className={`sidebar__link-btn sidebar__ping-btn ${isPinging ? "is-active" : ""}`}
+            onClick={onTogglePing}
+          >
+            {isPinging ? "📡 Anuluj ping" : "📡 Ping"}
+          </button>
+          {pingHint && <p className="sidebar__hint sidebar__hint--ping">{pingHint}</p>}
+        </section>
+
+        <section className="sidebar__section">
           <h2 className="sidebar__heading">Widok</h2>
           <button
             type="button"
@@ -81,3 +105,4 @@ export default function Sidebar({
     </aside>
   );
 }
+

@@ -2,9 +2,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest, RouteDeleteRequest
+from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest, RouteDeleteRequest, PingRequest
 from objects.computer import Computer
 from objects.router import Router
+from objects.ping import build_ping_result
 
 app = FastAPI(title="Hello World")
 
@@ -213,3 +214,16 @@ def delete_route(device_id: int, route_data: RouteDeleteRequest):
         return {"message": "Route deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/ping")
+def ping(ping_data: PingRequest):
+    source = find_device(ping_data.source_id)
+    target = find_device(ping_data.target_id)
+
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Source device {ping_data.source_id} not found")
+    if not target:
+        raise HTTPException(status_code=404, detail=f"Target device {ping_data.target_id} not found")
+
+    result = build_ping_result(devices_db, links_db, ping_data.source_id, ping_data.target_id)
+    return result
