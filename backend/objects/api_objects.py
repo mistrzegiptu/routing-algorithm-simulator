@@ -90,3 +90,7 @@ class RouteDeleteRequest(BaseModel):
         except ValueError:
             raise ValueError('Invalid IPv4 address format')
         return v
+    
+class PingRequest(BaseModel):
+    source_id: int
+    target_id: int

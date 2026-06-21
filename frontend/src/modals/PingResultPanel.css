@@ -1,0 +1,225 @@
+.ping-result-panel {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 380px;
+    background: linear-gradient(135deg, #1e1e2f 0%, #2a2a4a 100%);
+    border: 1px solid #3a3a5c;
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 2000;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(56, 189, 248, 0.1);
+    animation: ping-panel-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    color: #e5e7eb;
+    font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+@keyframes ping-panel-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.ping-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.ping-result-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.ping-result-icon {
+    font-size: 22px;
+}
+
+.ping-result-close {
+    background: transparent;
+    border: 1px solid #4a4a6a;
+    color: #9ca3af;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.ping-result-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f3f4f6;
+    border-color: #6b7280;
+}
+
+.ping-result-message {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 14px;
+    line-height: 1.5;
+    border-left: 3px solid;
+}
+
+.ping-result-message.success {
+    border-left-color: #4ade80;
+    color: #bbf7d0;
+}
+
+.ping-result-message.fail {
+    border-left-color: #f87171;
+    color: #fecaca;
+}
+
+.ping-result-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.ping-stat {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+}
+
+.ping-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #38bdf8;
+    font-variant-numeric: tabular-nums;
+}
+
+.ping-stat-label {
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+.ping-hops-title {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.ping-hops-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ping-hop-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+
+.ping-hop-item:hover {
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.ping-hop-index {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #38bdf8;
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ping-hop-route {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ping-hop-arrow {
+    color: #6b7280;
+    margin: 0 2px;
+}
+
+.ping-hop-delay {
+    color: #38bdf8;
+    font-weight: 600;
+    font-size: 12px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.ping-result-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.ping-btn {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.ping-btn-replay {
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+    color: #0f172a;
+}
+
+.ping-btn-replay:hover {
+    background: linear-gradient(135deg, #38bdf8, #7dd3fc);
+    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.3);
+}
+
+.ping-btn-close {
+    background: transparent;
+    border: 1px solid #4a4a6a;
+    color: #9ca3af;
+}
+
+.ping-btn-close:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f3f4f6;
+}

@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Sidebar from "./components/Sidebar.jsx";
 import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
 import { AddingLinkState } from "./models/AddingLinkState.js";
+import { PingState } from "./models/PingState.js";
 import AddLinkModal from "./modals/AddLinkModal.jsx";
-import { saveLinkRoute, updateDevice } from "./api/device_api.js";
+import PingResultPanel from "./modals/PingResultPanel.jsx";
+
+import { saveLinkRoute, updateDevice, pingDevice } from "./api/device_api.js";
 import "./App.css";
 
 function App() {
@@ -18,6 +21,13 @@ function App() {
   const [destinationDevice, setDestinationDevice] = useState(null);
 
   const [showInterfaceIps, setShowInterfaceIps] = useState(true);
+
+  // Ping state
+  const [pingState, setPingState] = useState(PingState.NORMAL);
+  const [pingSource, setPingSource] = useState(null);
+  const [pingResult, setPingResult] = useState(null);
+  const [pingAnimating, setPingAnimating] = useState(false);
+  const [highlightedLinkIds, setHighlightedLinkIds] = useState([]);
 
   const handleAddDevice = (created) => {
     setDevices(prev => {
@@ -35,6 +45,10 @@ function App() {
   };
 
   const addLinkHandler = () => {
+    // Cancel ping mode if active
+    if (pingState !== PingState.NORMAL) {
+      resetPing();
+    }
     setSourceDevice(null);
     setDestinationDevice(null);
     setAddingLinkState(
@@ -44,7 +58,91 @@ function App() {
     );
   };
 
+  // --- Ping handlers ---
+  const pingHandler = () => {
+    // Cancel link mode if active
+    if (addingLinkState !== AddingLinkState.NORMAL) {
+      resetLinkSelection();
+    }
+
+    if (pingState === PingState.NORMAL) {
+      setPingSource(null);
+      setPingResult(null);
+      setPingAnimating(false);
+      setHighlightedLinkIds([]);
+      setPingState(PingState.SELECTING_SOURCE);
+    } else {
+      resetPing();
+    }
+  };
+
+  const resetPing = () => {
+    setPingState(PingState.NORMAL);
+    setPingSource(null);
+    setPingResult(null);
+    setPingAnimating(false);
+    setHighlightedLinkIds([]);
+  };
+
+  const executePing = async (sourceId, targetId) => {
+    try {
+      const result = await pingDevice(sourceId, targetId);
+      setPingResult(result);
+
+      if (result.success && result.hops.length > 0) {
+        const linkIds = result.hops
+          .map(hop => hop.link_id)
+          .filter(id => id !== null && id !== undefined);
+        setHighlightedLinkIds(linkIds);
+
+        setPingAnimating(true);
+        setPingState(PingState.ANIMATING);
+      } else {
+        setPingState(PingState.DONE);
+      }
+    } catch (error) {
+      console.error("Ping error:", error);
+      setPingResult({
+        success: false,
+        path: [],
+        hops: [],
+        total_delay: 0,
+        hop_count: 0,
+        message: `Error: ${error.message}`,
+      });
+      setPingState(PingState.DONE);
+    }
+  };
+
+  const handlePingAnimationComplete = useCallback(() => {
+    setPingAnimating(false);
+    setPingState(PingState.DONE);
+  }, []);
+
+  const handlePingReplay = () => {
+    if (pingResult && pingResult.success && pingResult.hops.length > 0) {
+      setPingAnimating(true);
+      setPingState(PingState.ANIMATING);
+    }
+  };
+
   const handleSelectDevice = (id) => {
+    // Ping mode takes priority when active
+    if (pingState === PingState.SELECTING_SOURCE) {
+      setPingSource(id);
+      setPingState(PingState.SELECTING_DESTINATION);
+      return;
+    }
+    if (pingState === PingState.SELECTING_DESTINATION) {
+      if (id === pingSource) {
+        alert("Nie można pingować tego samego urządzenia");
+        return;
+      }
+      executePing(pingSource, id);
+      return;
+    }
+
+    // Link mode
     if (addingLinkState === AddingLinkState.SELECTING_SOURCE) {
       setSourceDevice(id);
       setAddingLinkState(AddingLinkState.SELECTING_DESTINATION);
@@ -99,7 +197,7 @@ function App() {
   };
 
   const handleConfigureDevice = (id) => {
-    if (addingLinkState === AddingLinkState.NORMAL) {
+    if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
       setSelectedDeviceId(id);
     }
   };
@@ -148,6 +246,8 @@ function App() {
         onToggleAddLink={addLinkHandler}
         showInterfaceIps={showInterfaceIps}
         onToggleInterfaceIps={() => setShowInterfaceIps(v => !v)}
+        pingState={pingState}
+        onTogglePing={pingHandler}
       />
 
       <main className="app-canvas-area">
@@ -160,6 +260,12 @@ function App() {
           onUpdateDevicePosition={handleUpdateDevicePosition}
           onSelectDevice={handleSelectDevice}
           onConfigureDevice={handleConfigureDevice}
+          pingState={pingState}
+          pingSourceId={pingSource}
+          highlightedLinkIds={highlightedLinkIds}
+          pingHops={pingResult?.hops || null}
+          pingAnimating={pingAnimating}
+          onPingAnimationComplete={handlePingAnimationComplete}
         />
       </main>
 
@@ -179,6 +285,14 @@ function App() {
           destName={devices.find(d => d.id === destinationDevice)?.name}
           onAddLink={saveLink}
           onClose={resetLinkSelection}
+        />
+      )}
+
+      {pingState === PingState.DONE && pingResult && (
+        <PingResultPanel
+          pingResult={pingResult}
+          onReplay={handlePingReplay}
+          onClose={resetPing}
         />
       )}
     </div>

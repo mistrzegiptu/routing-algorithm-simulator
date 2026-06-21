@@ -16,14 +16,22 @@ export default function LinkEdge({ id, sourceX, sourceY, targetX, targetY, data 
   const tgt = { x: targetX - ux * offset, y: targetY - uy * offset };
 
   const showIps = data?.showIps ?? true;
+  const highlighted = data?.highlighted ?? false;
+  const dimmed = data?.dimmed ?? false;
+
+  const edgeClass = [
+    'link-edge__path',
+    highlighted ? 'link-edge__path--highlighted' : '',
+    dimmed ? 'link-edge__path--dimmed' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} className="link-edge__path" />
+      <BaseEdge id={id} path={edgePath} className={edgeClass} />
       <EdgeLabelRenderer>
         {showIps && data?.sourceCidr && (
           <div
-            className="link-edge__ip nodrag nopan"
+            className="link-edge__ip"
             style={{ transform: `translate(-50%, -50%) translate(${src.x}px, ${src.y}px)` }}
           >
             {data.sourceCidr}
@@ -31,7 +39,7 @@ export default function LinkEdge({ id, sourceX, sourceY, targetX, targetY, data 
         )}
         {showIps && data?.targetCidr && (
           <div
-            className="link-edge__ip nodrag nopan"
+            className="link-edge__ip"
             style={{ transform: `translate(-50%, -50%) translate(${tgt.x}px, ${tgt.y}px)` }}
           >
             {data.targetCidr}
