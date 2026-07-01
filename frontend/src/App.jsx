@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Sidebar from "./components/Sidebar.jsx";
 import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
@@ -31,8 +31,24 @@ function App() {
   const [pingAnimating, setPingAnimating] = useState(false);
   const [highlightedLinkIds, setHighlightedLinkIds] = useState([]);
 
+  const canvasRef = useRef(null);
+
   const handleAddDevice = (created) => {
     setDevices(prev => {
+      // Fan consecutive additions out slightly so they don't stack perfectly.
+      const jitter = (prev.length % 6) * 24 - 60;
+      const spawn = canvasRef.current?.getSpawnPosition();
+
+      if (spawn) {
+        // Center of the visible viewport; offset to center the node itself (~96×60).
+        return [...prev, {
+          ...created,
+          x: spawn.x - 48 + jitter,
+          y: spawn.y - 30 + jitter,
+        }];
+      }
+
+      // Fallback grid if the canvas instance isn't ready yet.
       const index = prev.length;
       const x = 80 + (index % 5) * 200;
       const y = 80 + Math.floor(index / 5) * 180;
@@ -310,6 +326,7 @@ function App() {
 
       <main className="app-canvas-area">
         <TopologyCanvas
+          ref={canvasRef}
           devices={devices}
           links={links}
           addingLinkState={addingLinkState}
