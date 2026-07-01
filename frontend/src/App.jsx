@@ -60,12 +60,28 @@ function App() {
     try {
       const result = await deleteDevice(id);
       const removedLinkIds = result.removed_link_ids || [];
+      const updatedDevices = result.updated_devices || [];
+      const updatedLinks = result.updated_links || [];
 
-      setDevices(prev => prev.filter(d => d.id !== id));
+      // Peers (routers) may have shrunk an interface; merge their fresh state.
+      setDevices(prev =>
+        prev
+          .filter(d => d.id !== id)
+          .map(d => {
+            const u = updatedDevices.find(x => x.id === d.id);
+            return u ? { ...d, ...u } : d;
+          })
+      );
+      // Drop this device's links; sync interface indices on links that shifted.
       setLinks(prev =>
-        prev.filter(l =>
-          l.sourceId !== id && l.destId !== id && !removedLinkIds.includes(l.id)
-        )
+        prev
+          .filter(l =>
+            l.sourceId !== id && l.destId !== id && !removedLinkIds.includes(l.id)
+          )
+          .map(l => {
+            const u = updatedLinks.find(x => x.id === l.id);
+            return u ? { ...l, sourcePort: u.port_a_num, destPort: u.port_b_num } : l;
+          })
       );
 
       // Clear any state that might still reference the removed device.
