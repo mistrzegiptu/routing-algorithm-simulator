@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest, RouteDeleteRequest, PingRequest
+from objects.device import Device
 from objects.computer import Computer
 from objects.router import Router
 from objects.ping import build_ping_result
@@ -107,6 +108,37 @@ def update_device(
                     raise HTTPException(status_code=400, detail=str(e))
 
     return serialize_device(device)
+
+
+@app.delete("/api/devices/{device_id}")
+def delete_device(device_id: int):
+    device = find_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Tear down every link touching this device, keeping the peer device in sync.
+    removed_link_ids = []
+    affected_links = [
+        l for l in links_db if l.device_a == device_id or l.device_b == device_id
+    ]
+    for link in affected_links:
+        peer_id = link.device_b if link.device_a == device_id else link.device_a
+        peer = find_device(peer_id)
+        links_db.remove(link)
+        removed_link_ids.append(link.id)
+        if peer:
+            peer.links = [l for l in peer.links if l.id != link.id]
+
+    # Return this device's IP addresses to the shared pool so they can be reused.
+    for port in device.ports:
+        Device.ip_address_pool.discard(port.ip)
+
+    devices_db.remove(device)
+
+    return {
+        "message": "Device deleted successfully",
+        "removed_link_ids": removed_link_ids,
+    }
 
 
 @app.get("/api/devices/{device_id}/available-ports")

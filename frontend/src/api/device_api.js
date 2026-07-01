@@ -30,6 +30,20 @@ export async function updateDevice(deviceId, updatedData) {
     return res.json();
 }
 
+export async function deleteDevice(deviceId) {
+    const res = await fetch(`${URL}/devices/${deviceId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+    });
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const error = new Error("Failed to delete device");
+        error.detail = errorData.detail;
+        throw error;
+    }
+    return res.json();
+}
+
 export async function saveLinkRoute(newLink) {
     try {
         const payload = {

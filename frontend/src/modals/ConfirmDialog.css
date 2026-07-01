@@ -1,0 +1,23 @@
+.confirm-window {
+    max-width: 380px;
+}
+
+.confirm-message {
+    margin: 4px 0 22px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-dim);
+}
+
+.confirm-message strong {
+    color: var(--text);
+}
+
+.modal-btn--danger {
+    background: var(--danger, #ef4444);
+    color: #fff;
+}
+
+.modal-btn--danger:hover {
+    filter: brightness(1.08);
+}

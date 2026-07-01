@@ -6,8 +6,9 @@ import { AddingLinkState } from "./models/AddingLinkState.js";
 import { PingState } from "./models/PingState.js";
 import AddLinkModal from "./modals/AddLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
+import ConfirmDialog from "./modals/ConfirmDialog.jsx";
 
-import { saveLinkRoute, updateDevice, pingDevice } from "./api/device_api.js";
+import { saveLinkRoute, updateDevice, pingDevice, deleteDevice } from "./api/device_api.js";
 import "./App.css";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const [links, setLinks] = useState([]);
 
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
 
   const [addingLinkState, setAddingLinkState] = useState(AddingLinkState.NORMAL);
   const [sourceDevice, setSourceDevice] = useState(null);
@@ -42,6 +44,41 @@ function App() {
     setDevices(prev =>
       prev.map(d => (d.id === id ? { ...d, x, y } : d))
     );
+  };
+
+  // --- Device deletion ---
+  const requestDeleteDevice = useCallback((id) => {
+    setDevicePendingDeletion(id);
+  }, []);
+
+  const cancelDeleteDevice = () => setDevicePendingDeletion(null);
+
+  const confirmDeleteDevice = async () => {
+    const id = devicePendingDeletion;
+    if (id === null) return;
+
+    try {
+      const result = await deleteDevice(id);
+      const removedLinkIds = result.removed_link_ids || [];
+
+      setDevices(prev => prev.filter(d => d.id !== id));
+      setLinks(prev =>
+        prev.filter(l =>
+          l.sourceId !== id && l.destId !== id && !removedLinkIds.includes(l.id)
+        )
+      );
+
+      // Clear any state that might still reference the removed device.
+      if (selectedDeviceId === id) setSelectedDeviceId(null);
+      setHighlightedLinkIds(prev => prev.filter(lid => !removedLinkIds.includes(lid)));
+      if (sourceDevice === id) resetLinkSelection();
+      if (pingSource === id) resetPing();
+    } catch (error) {
+      console.error("Error deleting device:", error);
+      alert("Nie udało się usunąć urządzenia.");
+    } finally {
+      setDevicePendingDeletion(null);
+    }
   };
 
   const addLinkHandler = () => {
@@ -238,6 +275,11 @@ function App() {
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
 
+  const pendingDevice = devices.find(d => d.id === devicePendingDeletion);
+  const pendingDeviceLinkCount = pendingDevice
+    ? links.filter(l => l.sourceId === pendingDevice.id || l.destId === pendingDevice.id).length
+    : 0;
+
   return (
     <div className="app-root">
       <Sidebar
@@ -260,6 +302,7 @@ function App() {
           onUpdateDevicePosition={handleUpdateDevicePosition}
           onSelectDevice={handleSelectDevice}
           onConfigureDevice={handleConfigureDevice}
+          onRequestDeleteDevice={requestDeleteDevice}
           pingState={pingState}
           pingSourceId={pingSource}
           highlightedLinkIds={highlightedLinkIds}
@@ -274,6 +317,7 @@ function App() {
           device={selectedDevice}
           onClose={handleCloseConfig}
           onSave={handleSaveConfig}
+          onDelete={requestDeleteDevice}
         />
       )}
 
@@ -293,6 +337,25 @@ function App() {
           pingResult={pingResult}
           onReplay={handlePingReplay}
           onClose={resetPing}
+        />
+      )}
+
+      {pendingDevice && (
+        <ConfirmDialog
+          title="Usunąć urządzenie?"
+          message={
+            <>
+              Urządzenie <strong>{pendingDevice.name}</strong> zostanie trwale usunięte
+              {pendingDeviceLinkCount > 0 && (
+                <> wraz z {pendingDeviceLinkCount} {pendingDeviceLinkCount === 1 ? "połączeniem" : "połączeniami"}</>
+              )}
+              . Tej operacji nie można cofnąć.
+            </>
+          }
+          confirmLabel="Usuń"
+          danger
+          onConfirm={confirmDeleteDevice}
+          onCancel={cancelDeleteDevice}
         />
       )}
     </div>

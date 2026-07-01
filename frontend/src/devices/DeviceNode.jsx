@@ -11,8 +11,14 @@ const DEVICE_IMAGES = {
 };
 
 function DeviceNode({ data }) {
-  const { device, linking, isSource, showIp = true } = data;
+  const { device, linking, isSource, showIp = true, onRequestDelete } = data;
   const imageSrc = DEVICE_IMAGES[device.type] || routerImg;
+
+  const handleDeleteClick = (e) => {
+    // Keep the click from selecting/dragging the node underneath.
+    e.stopPropagation();
+    onRequestDelete?.(device.id);
+  };
 
   // A computer has a single NIC: surface its IP right under the name.
   const computerCidr =
@@ -32,6 +38,18 @@ function DeviceNode({ data }) {
 
       <div className="device-node__icon-wrap">
         <img className="device-node__icon" src={imageSrc} alt={device.type} draggable={false} />
+        {!linking && onRequestDelete && (
+          <button
+            type="button"
+            className="device-node__delete"
+            onClick={handleDeleteClick}
+            onDoubleClick={(e) => e.stopPropagation()}
+            title="Usuń urządzenie"
+            aria-label="Usuń urządzenie"
+          >
+            ×
+          </button>
+        )}
       </div>
 
       <div className="device-node__name">

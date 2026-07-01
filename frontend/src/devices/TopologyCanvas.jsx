@@ -30,6 +30,7 @@ export default function TopologyCanvas({
   onUpdateDevicePosition,
   onSelectDevice,
   onConfigureDevice,
+  onRequestDeleteDevice,
   // Ping props
   pingState = PingState.NORMAL,
   pingSourceId = null,
@@ -61,9 +62,10 @@ export default function TopologyCanvas({
         linking: isInteractive,
         isSource: d.id === sourceDeviceId || d.id === pingSourceId,
         showIp: showInterfaceIps,
+        onRequestDelete: onRequestDeleteDevice,
       },
     })));
-  }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, setNodes]);
+  }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, onRequestDeleteDevice, setNodes]);
 
   const edges = useMemo(() => links.map((link) => {
     const a = devices.find((d) => d.id === link.sourceId);
