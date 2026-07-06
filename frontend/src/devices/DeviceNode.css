@@ -55,6 +55,15 @@
     transform: scale(1.12);
 }
 
+/* SVG icon instead of a "×" text glyph — an SVG has no font-metric
+   ascent/descent asymmetry, so grid centering on the button actually
+   centers it, unlike a text character which drifts by font/browser. */
+.device-node__delete-icon {
+    width: 12px;
+    height: 12px;
+    display: block;
+}
+
 .device-node__icon {
     width: 52px;
     height: 52px;

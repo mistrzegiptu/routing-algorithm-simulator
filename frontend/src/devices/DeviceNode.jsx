@@ -47,7 +47,9 @@ function DeviceNode({ data }) {
             title="Usuń urządzenie"
             aria-label="Usuń urządzenie"
           >
-            ×
+            <svg className="device-node__delete-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
           </button>
         )}
       </div>
