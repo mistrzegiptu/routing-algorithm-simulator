@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   BackgroundVariant,
   Controls,
@@ -21,7 +22,7 @@ import './TopologyCanvas.css';
 const nodeTypes = { device: DeviceNode };
 const edgeTypes = { link: LinkEdge };
 
-export default function TopologyCanvas({
+const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   devices,
   links,
   addingLinkState,
@@ -30,6 +31,7 @@ export default function TopologyCanvas({
   onUpdateDevicePosition,
   onSelectDevice,
   onConfigureDevice,
+  onRequestDeleteDevice,
   // Ping props
   pingState = PingState.NORMAL,
   pingSourceId = null,
@@ -37,7 +39,24 @@ export default function TopologyCanvas({
   pingHops = null,
   pingAnimating = false,
   onPingAnimationComplete = null,
-}) {
+}, ref) {
+  const wrapperRef = useRef(null);
+  const { screenToFlowPosition } = useReactFlow();
+
+  // Exposes the flow-coordinate at the center of the currently visible canvas,
+  // so newly added devices spawn where the user is actually looking.
+  useImperativeHandle(ref, () => ({
+    getSpawnPosition: () => {
+      const el = wrapperRef.current;
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+    },
+  }), [screenToFlowPosition]);
+
   const isLinking =
     addingLinkState === AddingLinkState.SELECTING_SOURCE ||
     addingLinkState === AddingLinkState.SELECTING_DESTINATION;
@@ -61,9 +80,10 @@ export default function TopologyCanvas({
         linking: isInteractive,
         isSource: d.id === sourceDeviceId || d.id === pingSourceId,
         showIp: showInterfaceIps,
+        onRequestDelete: onRequestDeleteDevice,
       },
     })));
-  }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, setNodes]);
+  }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, onRequestDeleteDevice, setNodes]);
 
   const edges = useMemo(() => links.map((link) => {
     const a = devices.find((d) => d.id === link.sourceId);
@@ -97,7 +117,7 @@ export default function TopologyCanvas({
   }, [onUpdateDevicePosition]);
 
   return (
-    <div className={`topology ${isInteractive ? 'topology--linking' : ''}`}>
+    <div ref={wrapperRef} className={`topology ${isInteractive ? 'topology--linking' : ''}`}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -136,4 +156,16 @@ export default function TopologyCanvas({
       </ReactFlow>
     </div>
   );
-}
+});
+
+// ReactFlowProvider gives the component access to the flow instance (viewport,
+// coordinate helpers) at this level, not just inside <ReactFlow>'s children.
+const TopologyCanvas = forwardRef(function TopologyCanvas(props, ref) {
+  return (
+    <ReactFlowProvider>
+      <TopologyCanvasInner {...props} ref={ref} />
+    </ReactFlowProvider>
+  );
+});
+
+export default TopologyCanvas;

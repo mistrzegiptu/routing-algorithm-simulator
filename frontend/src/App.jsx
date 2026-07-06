@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Sidebar from "./components/Sidebar.jsx";
 import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
@@ -6,8 +6,9 @@ import { AddingLinkState } from "./models/AddingLinkState.js";
 import { PingState } from "./models/PingState.js";
 import AddLinkModal from "./modals/AddLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
+import ConfirmDialog from "./modals/ConfirmDialog.jsx";
 
-import { saveLinkRoute, updateDevice, pingDevice } from "./api/device_api.js";
+import { saveLinkRoute, updateDevice, pingDevice, deleteDevice } from "./api/device_api.js";
 import "./App.css";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const [links, setLinks] = useState([]);
 
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
 
   const [addingLinkState, setAddingLinkState] = useState(AddingLinkState.NORMAL);
   const [sourceDevice, setSourceDevice] = useState(null);
@@ -29,8 +31,24 @@ function App() {
   const [pingAnimating, setPingAnimating] = useState(false);
   const [highlightedLinkIds, setHighlightedLinkIds] = useState([]);
 
+  const canvasRef = useRef(null);
+
   const handleAddDevice = (created) => {
     setDevices(prev => {
+      // Fan consecutive additions out slightly so they don't stack perfectly.
+      const jitter = (prev.length % 6) * 24 - 60;
+      const spawn = canvasRef.current?.getSpawnPosition();
+
+      if (spawn) {
+        // Center of the visible viewport; offset to center the node itself (~96×60).
+        return [...prev, {
+          ...created,
+          x: spawn.x - 48 + jitter,
+          y: spawn.y - 30 + jitter,
+        }];
+      }
+
+      // Fallback grid if the canvas instance isn't ready yet.
       const index = prev.length;
       const x = 80 + (index % 5) * 200;
       const y = 80 + Math.floor(index / 5) * 180;
@@ -42,6 +60,57 @@ function App() {
     setDevices(prev =>
       prev.map(d => (d.id === id ? { ...d, x, y } : d))
     );
+  };
+
+  // --- Device deletion ---
+  const requestDeleteDevice = useCallback((id) => {
+    setDevicePendingDeletion(id);
+  }, []);
+
+  const cancelDeleteDevice = () => setDevicePendingDeletion(null);
+
+  const confirmDeleteDevice = async () => {
+    const id = devicePendingDeletion;
+    if (id === null) return;
+
+    try {
+      const result = await deleteDevice(id);
+      const removedLinkIds = result.removed_link_ids || [];
+      const updatedDevices = result.updated_devices || [];
+      const updatedLinks = result.updated_links || [];
+
+      // Peers (routers) may have shrunk an interface; merge their fresh state.
+      setDevices(prev =>
+        prev
+          .filter(d => d.id !== id)
+          .map(d => {
+            const u = updatedDevices.find(x => x.id === d.id);
+            return u ? { ...d, ...u } : d;
+          })
+      );
+      // Drop this device's links; sync interface indices on links that shifted.
+      setLinks(prev =>
+        prev
+          .filter(l =>
+            l.sourceId !== id && l.destId !== id && !removedLinkIds.includes(l.id)
+          )
+          .map(l => {
+            const u = updatedLinks.find(x => x.id === l.id);
+            return u ? { ...l, sourcePort: u.port_a_num, destPort: u.port_b_num } : l;
+          })
+      );
+
+      // Clear any state that might still reference the removed device.
+      if (selectedDeviceId === id) setSelectedDeviceId(null);
+      setHighlightedLinkIds(prev => prev.filter(lid => !removedLinkIds.includes(lid)));
+      if (sourceDevice === id) resetLinkSelection();
+      if (pingSource === id) resetPing();
+    } catch (error) {
+      console.error("Error deleting device:", error);
+      alert("Nie udało się usunąć urządzenia.");
+    } finally {
+      setDevicePendingDeletion(null);
+    }
   };
 
   const addLinkHandler = () => {
@@ -238,6 +307,11 @@ function App() {
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
 
+  const pendingDevice = devices.find(d => d.id === devicePendingDeletion);
+  const pendingDeviceLinkCount = pendingDevice
+    ? links.filter(l => l.sourceId === pendingDevice.id || l.destId === pendingDevice.id).length
+    : 0;
+
   return (
     <div className="app-root">
       <Sidebar
@@ -252,6 +326,7 @@ function App() {
 
       <main className="app-canvas-area">
         <TopologyCanvas
+          ref={canvasRef}
           devices={devices}
           links={links}
           addingLinkState={addingLinkState}
@@ -260,6 +335,7 @@ function App() {
           onUpdateDevicePosition={handleUpdateDevicePosition}
           onSelectDevice={handleSelectDevice}
           onConfigureDevice={handleConfigureDevice}
+          onRequestDeleteDevice={requestDeleteDevice}
           pingState={pingState}
           pingSourceId={pingSource}
           highlightedLinkIds={highlightedLinkIds}
@@ -274,6 +350,7 @@ function App() {
           device={selectedDevice}
           onClose={handleCloseConfig}
           onSave={handleSaveConfig}
+          onDelete={requestDeleteDevice}
         />
       )}
 
@@ -293,6 +370,25 @@ function App() {
           pingResult={pingResult}
           onReplay={handlePingReplay}
           onClose={resetPing}
+        />
+      )}
+
+      {pendingDevice && (
+        <ConfirmDialog
+          title="Usunąć urządzenie?"
+          message={
+            <>
+              Urządzenie <strong>{pendingDevice.name}</strong> zostanie trwale usunięte
+              {pendingDeviceLinkCount > 0 && (
+                <> wraz z {pendingDeviceLinkCount} {pendingDeviceLinkCount === 1 ? "połączeniem" : "połączeniami"}</>
+              )}
+              . Tej operacji nie można cofnąć.
+            </>
+          }
+          confirmLabel="Usuń"
+          danger
+          onConfirm={confirmDeleteDevice}
+          onCancel={cancelDeleteDevice}
         />
       )}
     </div>

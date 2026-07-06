@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getRouteTable, addRoute, deleteRoute } from "../api/device_api";
 import "./DeviceDetailsPanel.css";
 
-export default function DeviceDetailsPanel({device, onClose, onSave}) {
+export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) {
     const [name, setName] = useState("");
     const [ports, setPorts] = useState([]);
     const [routeTable, setRouteTable] = useState([]);
@@ -196,6 +196,21 @@ export default function DeviceDetailsPanel({device, onClose, onSave}) {
                     <button type="submit" className="btn-primary" disabled={isAddingRoute}>{isAddingRoute ? "Dodawanie..." : "Dodaj"}</button>
                 </div>
             </form>
+            </section>
+
+            <hr />
+
+            {/* --- SEKCJA 3: STREFA USUWANIA --- */}
+            <section className="panel-section danger-zone">
+            <h3>Strefa usuwania</h3>
+            <p className="empty-text">Usunięcie urządzenia skasuje też wszystkie jego połączenia.</p>
+            <button
+                type="button"
+                className="btn-danger"
+                onClick={() => onDelete?.(device.id)}
+            >
+                🗑️ Usuń urządzenie
+            </button>
             </section>
 
         </div>

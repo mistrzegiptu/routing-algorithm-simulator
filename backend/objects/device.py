@@ -119,6 +119,28 @@ class Device:
         device_b.links.append(new_link)
         return new_link
     
+    def remove_link_port(self, port_num):
+        """Drop the interface at ``port_num`` after its link was torn down.
+
+        Only dynamic-port devices (routers) shrink — a computer keeps its single
+        fixed NIC. Because links reference interfaces by index, every remaining
+        link pointing at a higher index on this device is shifted down by one.
+        """
+        if not self.dynamic_ports:
+            return
+        if port_num < 0 or port_num >= len(self.ports):
+            return
+
+        removed = self.ports.pop(port_num)
+        self.port_number -= 1
+        Device.ip_address_pool.discard(removed.ip)
+
+        for link in self.links:
+            if link.device_a == self.id and link.port_a_num > port_num:
+                link.port_a_num -= 1
+            if link.device_b == self.id and link.port_b_num > port_num:
+                link.port_b_num -= 1
+
     def del_link(self, link_id, device_b):
         link_to_remove = next((l for l in self.links if l.id == link_id), None)
 
