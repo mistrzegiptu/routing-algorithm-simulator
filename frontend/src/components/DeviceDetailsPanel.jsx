@@ -200,9 +200,9 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
 
             <hr />
 
-            {/* --- SEKCJA 3: STREFA NIEBEZPIECZNA --- */}
+            {/* --- SEKCJA 3: STREFA USUWANIA --- */}
             <section className="panel-section danger-zone">
-            <h3>Strefa niebezpieczna</h3>
+            <h3>Strefa usuwania</h3>
             <p className="empty-text">Usunięcie urządzenia skasuje też wszystkie jego połączenia.</p>
             <button
                 type="button"
