@@ -1,34 +1,45 @@
 import { useState } from 'react';
-import "./AddLinkModal.css";
+import "./EditLinkModal.css";
 
-export default function AddLinkModal({ sourceId, destId, sourceName, destName, onAddLink, onClose }) {
-    const [bandwidth, setBandwidth] = useState("");
-    const [unit, setUnit] = useState('Mbps');
-    const [delay, setDelay] = useState("");
+export default function EditLinkModal({
+    sourceName,
+    destName,
+    bandwidth: initialBandwidth,
+    unit: initialUnit,
+    delay: initialDelay,
+    onSave,
+    onDelete,
+    onClose,
+}) {
+    const [bandwidth, setBandwidth] = useState(initialBandwidth ?? "");
+    const [unit, setUnit] = useState(initialUnit ?? 'Mbps');
+    const [delay, setDelay] = useState(initialDelay ?? "");
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onAddLink({
-            sourceId,
-            destId,
+        onSave({
             bandwidth: bandwidth ? parseInt(bandwidth, 10) : null,
-            bandwidthUnit: unit,
+            unit,
             delay: delay ? parseInt(delay, 10) : 10,
         });
+    };
+
+    const handleDelete = () => {
+        onDelete();
+        onClose();
     };
 
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-window" onClick={(e) => e.stopPropagation()}>
                 <button className="modal-close" onClick={onClose} aria-label="Zamknij">×</button>
-                <h2 className="modal-title">Nowe połączenie</h2>
+                <h2 className="modal-title">Parametry połączenia</h2>
 
                 <div className="link-endpoints">
-                    <span className="link-endpoints__pill">{sourceName ?? `#${sourceId}`}</span>
+                    <span className="link-endpoints__pill">{sourceName}</span>
                     <span className="link-endpoints__arrow">↔</span>
-                    <span className="link-endpoints__pill">{destName ?? `#${destId}`}</span>
+                    <span className="link-endpoints__pill">{destName}</span>
                 </div>
-                <p className="modal-note">Interfejsy zostaną przydzielone automatycznie.</p>
 
                 <form onSubmit={handleSubmit} className="modal-form">
                     <label className="modal-field">
@@ -59,13 +70,18 @@ export default function AddLinkModal({ sourceId, destId, sourceName, destName, o
                         />
                     </label>
 
-                    <div className="modal-actions">
-                        <button type="button" className="modal-btn modal-btn--ghost" onClick={onClose}>
-                            Anuluj
+                    <div className="modal-actions modal-actions--split">
+                        <button type="button" className="modal-btn modal-btn--danger-ghost" onClick={handleDelete}>
+                            Usuń połączenie
                         </button>
-                        <button type="submit" className="modal-btn modal-btn--primary">
-                            Dodaj łącze
-                        </button>
+                        <div className="modal-actions__right">
+                            <button type="button" className="modal-btn modal-btn--ghost" onClick={onClose}>
+                                Anuluj
+                            </button>
+                            <button type="submit" className="modal-btn modal-btn--primary">
+                                Zapisz
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

@@ -70,6 +70,35 @@ export async function saveLinkRoute(newLink) {
     }
 }
 
+export async function deleteLink(linkId) {
+    const res = await fetch(`${URL}/links/${linkId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" }
+    });
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const error = new Error("Failed to delete link");
+        error.detail = errorData.detail;
+        throw error;
+    }
+    return res.json();
+}
+
+export async function updateLink(linkId, updatedData) {
+    const res = await fetch(`${URL}/links/${linkId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData)
+    });
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const error = new Error("Failed to update link");
+        error.detail = errorData.detail;
+        throw error;
+    }
+    return res.json();
+}
+
 export async function getRouteTable(id) {
     try {
         const res = await fetch(`${URL}/route/${id}`, {

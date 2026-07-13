@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
-from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, RouteCreateRequest, RouteDeleteRequest, PingRequest
+from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, LinkUpdateRequest, RouteCreateRequest, RouteDeleteRequest, PingRequest
 from objects.device import Device
 from objects.computer import Computer
 from objects.router import Router
@@ -230,24 +230,48 @@ def delete_link(link_id: int):
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
-    links_db.remove(link)
     device_a = find_device(link.device_a)
     device_b = find_device(link.device_b)
-
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
 
-    try:
-        device_a.del_link(link_id, device_b)
-        return {"message": "Link deleted successfully"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    port_a_num, port_b_num = link.port_a_num, link.port_b_num
+    links_db.remove(link)
+    device_a.del_link(link_id, device_b)
+
+    # Free/reindex interfaces same as delete_device's cascade (no-op for computers).
+    device_a.remove_link_port(port_a_num)
+    device_b.remove_link_port(port_b_num)
+
+    # Other links on either device may have had their port index shifted down.
+    touched_ids = {device_a.id, device_b.id}
+    updated_devices = [serialize_device(device_a), serialize_device(device_b)]
+    updated_links = [
+        serialize_link(l) for l in links_db
+        if l.device_a in touched_ids or l.device_b in touched_ids
+    ]
+
+    return {
+        "message": "Link deleted successfully",
+        "updated_devices": updated_devices,
+        "updated_links": updated_links,
+    }
 
 
 @app.put("/api/links/{link_id}")
-def update_link(link_id: int, link_data: CreateLinkRequest):
-    delete_link(link_id)
-    return create_link(link_data)
+def update_link(link_id: int, link_data: LinkUpdateRequest):
+    link = next((l for l in links_db if l.id == link_id), None)
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    if link_data.bandwidth is not None:
+        link.set_bandwidth(link_data.bandwidth)
+    if link_data.delay is not None:
+        link.set_delay(link_data.delay)
+    if link_data.unit is not None:
+        link.set_unit(link_data.unit)
+
+    return serialize_link(link)
 
 @app.post("/api/route/{device_id}")
 def add_route(route: RouteCreateRequest, device_id: int):
