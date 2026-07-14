@@ -63,6 +63,11 @@ class CreateLinkRequest(BaseModel):
     delay: int = 10
     unit: str = "Mbps"
 
+class LinkUpdateRequest(BaseModel):
+    bandwidth: Optional[int] = None
+    delay: Optional[int] = None
+    unit: Optional[str] = None
+
 class RouteCreateRequest(BaseModel):
     dest: str
     mask: int = Field(ge=0, le=32)

@@ -34,3 +34,41 @@
     50% { stroke-opacity: 1; }
 }
 
+/* Hover-to-delete button, sits at the link's midpoint. Visibility is driven
+   by the `hovered` edge-data flag (via onEdgeMouseEnter/Leave) rather than a
+   CSS :hover, since this button lives in EdgeLabelRenderer's own DOM layer,
+   not nested under the SVG path it visually belongs to. */
+.link-edge__delete {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--danger, #ef4444);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s, transform 0.12s, filter 0.12s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    z-index: 5;
+}
+
+.link-edge__delete--visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.link-edge__delete:hover {
+    filter: brightness(1.12);
+}
+
+.link-edge__delete-icon {
+    width: 12px;
+    height: 12px;
+    display: block;
+}
+
