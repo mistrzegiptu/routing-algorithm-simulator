@@ -155,3 +155,28 @@ export async function pingDevice(sourceId, targetId) {
     }
     return res.json();
 }
+
+export async function exportNetwork() {
+    const res = await fetch(`${URL}/export`);
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Export failed");
+    }
+    return res.json();
+}
+
+export async function importNetwork(fileData) {
+    const res = await fetch(`${URL}/import`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(fileData)
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Import failed");
+    }
+
+    return await res.json();
+}

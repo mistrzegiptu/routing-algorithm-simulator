@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Sidebar from "./components/Sidebar.jsx";
 import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
@@ -8,12 +8,84 @@ import AddLinkModal from "./modals/AddLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
 import ConfirmDialog from "./modals/ConfirmDialog.jsx";
 
-import { saveLinkRoute, updateDevice, pingDevice, deleteDevice } from "./api/device_api.js";
+import { saveLinkRoute, updateDevice, pingDevice, deleteDevice, exportNetwork } from "./api/device_api.js";
 import "./App.css";
 
 function App() {
   const [devices, setDevices] = useState([]);
   const [links, setLinks] = useState([]);
+
+  useEffect(() => {
+    const fetchInitData = async () => {
+      try {
+        const res = await exportNetwork();
+
+        if (!res || !res.devices_db) return;
+
+        const spawn = canvasRef.current?.getSpawnPosition();
+        const radius = Math.max(150, res.devices_db.length * 30)
+        
+        const newDevices = res.devices_db.map((d, index) => {
+          const angle = (index / res.devices_db.length) * 2 * Math.PI;
+          return {
+            ...d,
+            x: spawn.x + radius * Math.cos(angle) - 48,
+            y: spawn.y + radius * Math.sin(angle) - 30,
+          };
+        });
+
+        const newLinks = res.links_db.map(l => ({
+          id: l.id,
+          sourceId: l.device_a,
+          destId: l.device_b,
+          sourcePort: l.port_a_num,
+          destPort: l.port_b_num,
+          bandwidth: l.bandwidth,
+          delay: l.delay,
+          bandwidthUnit: l.unit,
+        }));
+
+        setDevices(newDevices);
+        setLinks(newLinks);
+
+        console.log("Imported devices:", newDevices);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchInitData();
+  }, []);
+
+  const importHandler = (importedDevices, importedLinks) => {
+    const spawn = canvasRef.current?.getSpawnPosition();
+    const radius = Math.max(150, importedDevices.length * 30)
+
+    const newDevices = importedDevices.map((d, index) => {
+      const angle = (index / importedDevices.length) * 2 * Math.PI;
+      return {
+        ...d,
+        x: spawn.x + radius * Math.cos(angle) - 48,
+        y: spawn.y + radius * Math.sin(angle) - 30,
+      };
+    });
+
+    const newLinks = importedLinks.map(l => ({
+      id: l.id,
+      sourceId: l.device_a,
+      destId: l.device_b,
+      sourcePort: l.port_a_num,
+      destPort: l.port_b_num,
+      bandwidth: l.bandwidth,
+      delay: l.delay,
+      bandwidthUnit: l.unit,
+    }));
+
+    setDevices(newDevices);
+    setLinks(newLinks);
+
+    console.log("Imported links:", newLinks);
+  }
 
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
@@ -322,6 +394,7 @@ function App() {
         onToggleInterfaceIps={() => setShowInterfaceIps(v => !v)}
         pingState={pingState}
         onTogglePing={pingHandler}
+        onImport={importHandler}
       />
 
       <main className="app-canvas-area">
