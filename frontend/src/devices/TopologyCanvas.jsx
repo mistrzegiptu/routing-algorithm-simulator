@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useMemo, useCallback, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -32,6 +32,8 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   onSelectDevice,
   onConfigureDevice,
   onRequestDeleteDevice,
+  onConfigureLink,
+  onRequestDeleteLink,
   // Ping props
   pingState = PingState.NORMAL,
   pingSourceId = null,
@@ -68,6 +70,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   const isInteractive = isLinking || isPinging;
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState(null);
 
   // Devices are the source of truth; rebuild nodes when they (or link/ping state) change.
   useEffect(() => {
@@ -100,9 +103,11 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         showIps: showInterfaceIps,
         highlighted: isHighlighted,
         dimmed: highlightedLinkIds.length > 0 && !isHighlighted,
+        hovered: !isInteractive && link.id === hoveredEdgeId,
+        onRequestDelete: onRequestDeleteLink,
       },
     };
-  }), [links, devices, showInterfaceIps, highlightedLinkIds]);
+  }), [links, devices, showInterfaceIps, highlightedLinkIds, isInteractive, hoveredEdgeId, onRequestDeleteLink]);
 
   const handleNodeClick = useCallback((_, node) => {
     if (isInteractive) onSelectDevice(Number(node.id));
@@ -111,6 +116,18 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   const handleNodeDoubleClick = useCallback((_, node) => {
     onConfigureDevice(Number(node.id));
   }, [onConfigureDevice]);
+
+  const handleEdgeDoubleClick = useCallback((_, edge) => {
+    onConfigureLink?.(Number(edge.id));
+  }, [onConfigureLink]);
+
+  const handleEdgeMouseEnter = useCallback((_, edge) => {
+    setHoveredEdgeId(Number(edge.id));
+  }, []);
+
+  const handleEdgeMouseLeave = useCallback(() => {
+    setHoveredEdgeId(null);
+  }, []);
 
   const handleNodeDragStop = useCallback((_, node) => {
     onUpdateDevicePosition(Number(node.id), node.position.x, node.position.y);
@@ -127,6 +144,9 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={handleNodeDoubleClick}
         onNodeDragStop={handleNodeDragStop}
+        onEdgeDoubleClick={handleEdgeDoubleClick}
+        onEdgeMouseEnter={handleEdgeMouseEnter}
+        onEdgeMouseLeave={handleEdgeMouseLeave}
         minZoom={0.3}
         maxZoom={2.5}
         nodesConnectable={false}

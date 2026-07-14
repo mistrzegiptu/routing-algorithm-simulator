@@ -4,7 +4,7 @@ import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
 import { AddingLinkState } from "./models/AddingLinkState.js";
 import { PingState } from "./models/PingState.js";
-import AddLinkModal from "./modals/AddLinkModal.jsx";
+import EditLinkModal from "./modals/EditLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
 import ConfirmDialog from "./modals/ConfirmDialog.jsx";
 
@@ -89,10 +89,10 @@ function App() {
 
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
+  const [selectedLinkId, setSelectedLinkId] = useState(null);
 
   const [addingLinkState, setAddingLinkState] = useState(AddingLinkState.NORMAL);
   const [sourceDevice, setSourceDevice] = useState(null);
-  const [destinationDevice, setDestinationDevice] = useState(null);
 
   const [showInterfaceIps, setShowInterfaceIps] = useState(true);
 
@@ -191,7 +191,6 @@ function App() {
       resetPing();
     }
     setSourceDevice(null);
-    setDestinationDevice(null);
     setAddingLinkState(
       addingLinkState === AddingLinkState.NORMAL
         ? AddingLinkState.SELECTING_SOURCE
@@ -283,7 +282,9 @@ function App() {
       return;
     }
 
-    // Link mode
+    // Link mode — creating a link happens immediately on picking the second
+    // device (no params modal), then the tool re-arms for the next pair so
+    // many links can be made back-to-back.
     if (addingLinkState === AddingLinkState.SELECTING_SOURCE) {
       setSourceDevice(id);
       setAddingLinkState(AddingLinkState.SELECTING_DESTINATION);
@@ -292,15 +293,19 @@ function App() {
         alert("Cannot select the same device as destination");
         return;
       }
-      setDestinationDevice(id);
-      setAddingLinkState(AddingLinkState.PORTS_SELECTED);
+      saveLink({
+        sourceId: sourceDevice,
+        destId: id,
+        bandwidth: 100,
+        bandwidthUnit: 'Mbps',
+        delay: 10,
+      });
     }
   };
 
   const resetLinkSelection = () => {
     setAddingLinkState(AddingLinkState.NORMAL);
     setSourceDevice(null);
-    setDestinationDevice(null);
   };
 
   const saveLink = async (newLinkData) => {
@@ -326,7 +331,9 @@ function App() {
         delay: saved.delay,
         bandwidthUnit: saved.unit,
       }]);
-      resetLinkSelection();
+      // Re-arm for the next pair instead of exiting linking mode entirely.
+      setSourceDevice(null);
+      setAddingLinkState(AddingLinkState.SELECTING_SOURCE);
     } catch (error) {
       console.error("Error saving link:", error);
       alert("Nie udało się dodać połączenia.");
@@ -336,6 +343,62 @@ function App() {
   const handleCloseConfig = () => {
     setSelectedDeviceId(null);
   };
+
+  // --- Link editing (double-click) ---
+  const requestConfigureLink = (id) => {
+    if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
+      setSelectedLinkId(id);
+    }
+  };
+
+  const handleCloseLinkConfig = () => setSelectedLinkId(null);
+
+  const handleSaveLinkConfig = async (id, updatedData) => {
+    try {
+      const saved = await updateLink(id, updatedData);
+      setLinks(prev =>
+        prev.map(l => (l.id === id
+          ? { ...l, bandwidth: saved.bandwidth, delay: saved.delay, bandwidthUnit: saved.unit }
+          : l))
+      );
+      setSelectedLinkId(null);
+    } catch (error) {
+      console.error("Error saving link:", error);
+      alert("Nie udało się zapisać połączenia.");
+    }
+  };
+
+  // --- Link deletion (fast, no confirmation — a link is cheap to recreate) ---
+  const requestDeleteLink = useCallback(async (id) => {
+    try {
+      const result = await deleteLink(id);
+      const updatedDevices = result.updated_devices || [];
+      const updatedLinks = result.updated_links || [];
+
+      // Peers (routers) may have shrunk an interface; merge their fresh state.
+      setDevices(prev =>
+        prev.map(d => {
+          const u = updatedDevices.find(x => x.id === d.id);
+          return u ? { ...d, ...u } : d;
+        })
+      );
+      // Drop this link; sync interface indices on links that shifted.
+      setLinks(prev =>
+        prev
+          .filter(l => l.id !== id)
+          .map(l => {
+            const u = updatedLinks.find(x => x.id === l.id);
+            return u ? { ...l, sourcePort: u.port_a_num, destPort: u.port_b_num } : l;
+          })
+      );
+
+      setHighlightedLinkIds(prev => prev.filter(lid => lid !== id));
+      setSelectedLinkId(prev => (prev === id ? null : prev));
+    } catch (error) {
+      console.error("Error deleting link:", error);
+      alert("Nie udało się usunąć połączenia.");
+    }
+  }, []);
 
   const handleConfigureDevice = (id) => {
     if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
@@ -378,6 +441,7 @@ function App() {
   };
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
+  const selectedLink = links.find(l => l.id === selectedLinkId);
 
   const pendingDevice = devices.find(d => d.id === devicePendingDeletion);
   const pendingDeviceLinkCount = pendingDevice
@@ -409,6 +473,8 @@ function App() {
           onSelectDevice={handleSelectDevice}
           onConfigureDevice={handleConfigureDevice}
           onRequestDeleteDevice={requestDeleteDevice}
+          onConfigureLink={requestConfigureLink}
+          onRequestDeleteLink={requestDeleteLink}
           pingState={pingState}
           pingSourceId={pingSource}
           highlightedLinkIds={highlightedLinkIds}
@@ -427,14 +493,16 @@ function App() {
         />
       )}
 
-      {addingLinkState === AddingLinkState.PORTS_SELECTED && (
-        <AddLinkModal
-          sourceId={sourceDevice}
-          destId={destinationDevice}
-          sourceName={devices.find(d => d.id === sourceDevice)?.name}
-          destName={devices.find(d => d.id === destinationDevice)?.name}
-          onAddLink={saveLink}
-          onClose={resetLinkSelection}
+      {selectedLink && (
+        <EditLinkModal
+          sourceName={devices.find(d => d.id === selectedLink.sourceId)?.name}
+          destName={devices.find(d => d.id === selectedLink.destId)?.name}
+          bandwidth={selectedLink.bandwidth}
+          unit={selectedLink.bandwidthUnit}
+          delay={selectedLink.delay}
+          onSave={(updatedData) => handleSaveLinkConfig(selectedLink.id, updatedData)}
+          onDelete={() => requestDeleteLink(selectedLink.id)}
+          onClose={handleCloseLinkConfig}
         />
       )}
 
