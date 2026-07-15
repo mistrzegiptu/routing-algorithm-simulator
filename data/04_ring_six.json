@@ -1,0 +1,162 @@
+﻿{
+  "devices_db": [
+    {
+      "name": "R0",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.0.1",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.5.2",
+          "mask": 30
+        }
+      ],
+      "id": 0,
+      "routing_table": []
+    },
+    {
+      "name": "R1",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.0.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.1.1",
+          "mask": 30
+        }
+      ],
+      "id": 1,
+      "routing_table": []
+    },
+    {
+      "name": "R2",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.1.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.2.1",
+          "mask": 30
+        }
+      ],
+      "id": 2,
+      "routing_table": []
+    },
+    {
+      "name": "R3",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.2.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.3.1",
+          "mask": 30
+        }
+      ],
+      "id": 3,
+      "routing_table": []
+    },
+    {
+      "name": "R4",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.3.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.4.1",
+          "mask": 30
+        }
+      ],
+      "id": 4,
+      "routing_table": []
+    },
+    {
+      "name": "R5",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.4.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.5.1",
+          "mask": 30
+        }
+      ],
+      "id": 5,
+      "routing_table": []
+    }
+  ],
+  "links_db": [
+    {
+      "id": 0,
+      "device_a": 0,
+      "device_b": 1,
+      "port_a_num": 0,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 1,
+      "device_a": 1,
+      "device_b": 2,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 2,
+      "device_a": 2,
+      "device_b": 3,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 3,
+      "device_a": 3,
+      "device_b": 4,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 4,
+      "device_a": 4,
+      "device_b": 5,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 5,
+      "device_a": 5,
+      "device_b": 0,
+      "port_a_num": 1,
+      "port_b_num": 1,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    }
+  ]
+}
