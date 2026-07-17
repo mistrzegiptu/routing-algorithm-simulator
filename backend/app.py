@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+from modules.serialize import export_topology, import_topology
 
 from objects.api_objects import DeviceCreateRequest, DeviceUpdateRequest, CreateLinkRequest, LinkUpdateRequest, RouteCreateRequest, RouteDeleteRequest, PingRequest
 from objects.device import Device
@@ -313,3 +314,13 @@ def ping(ping_data: PingRequest):
 
     result = build_ping_result(devices_db, links_db, ping_data.source_id, ping_data.target_id)
     return result
+
+@app.get("/api/export")
+def export_topology_endpoint():
+    exported_data = export_topology(devices_db, links_db)
+    return exported_data
+
+@app.post("/api/import")
+def import_topology_endpoint(json_content: dict = Body(...)):
+    import_topology(json_content, devices_db, links_db)
+    return {"message": "Topology imported successfully"}
