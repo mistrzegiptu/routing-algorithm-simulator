@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import Sidebar from "./components/Sidebar.jsx";
+import SimulationSidebar from "./components/SimulationSidebar.jsx";
 import TopologyCanvas from "./devices/TopologyCanvas.jsx";
 import DeviceDetailsPanel from './components/DeviceDetailsPanel.jsx';
 import { AddingLinkState } from "./models/AddingLinkState.js";
+import { AppMode } from "./models/AppMode.js";
 import { PingState } from "./models/PingState.js";
 import EditLinkModal from "./modals/EditLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
@@ -86,6 +88,13 @@ function App() {
 
     console.log("Imported links:", newLinks);
   }
+
+  const [appMode, setAppMode] = useState(AppMode.BUILD);
+
+  // Simulation-screen state: interactive ping picking on a running world.
+  const simSidebarRef = useRef(null);
+  const [simRunning, setSimRunning] = useState(false);
+  const [simPingSourceId, setSimPingSourceId] = useState(null);
 
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
@@ -440,6 +449,46 @@ function App() {
     }
   };
 
+  // --- Screen mode (Buduj / Symuluj) ---
+  const handleSwitchMode = (mode) => {
+    if (mode === appMode) return;
+    if (mode === AppMode.SIMULATE) {
+      // Leave build-time tools/panels behind; the simulation canvas is read-only.
+      resetPing();
+      resetLinkSelection();
+      setSelectedDeviceId(null);
+      setSelectedLinkId(null);
+      setDevicePendingDeletion(null);
+    } else {
+      // Leaving Symuluj unmounts its sidebar, which closes the socket and
+      // ends the simulation world on the backend.
+      setSimRunning(false);
+      setSimPingSourceId(null);
+    }
+    setAppMode(mode);
+  };
+
+  // --- Simulation ping: click source, click target, packet flies ---
+  const handleSimStatusChange = useCallback((state) => {
+    const active = state === 'running' || state === 'paused';
+    setSimRunning(active);
+    if (!active) setSimPingSourceId(null);
+  }, []);
+
+  const handleSimDeviceClick = (id) => {
+    if (!simRunning) return;
+    if (simPingSourceId === null) {
+      setSimPingSourceId(id);
+    } else if (id === simPingSourceId) {
+      setSimPingSourceId(null);
+    } else {
+      simSidebarRef.current?.sendPing(simPingSourceId, id);
+      setSimPingSourceId(null);
+    }
+  };
+
+  const handleSimPaneClick = () => setSimPingSourceId(null);
+
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
   const selectedLink = links.find(l => l.id === selectedLinkId);
 
@@ -450,33 +499,49 @@ function App() {
 
   return (
     <div className="app-root">
-      <Sidebar
-        onAddDevice={handleAddDevice}
-        addingLinkState={addingLinkState}
-        onToggleAddLink={addLinkHandler}
-        showInterfaceIps={showInterfaceIps}
-        onToggleInterfaceIps={() => setShowInterfaceIps(v => !v)}
-        pingState={pingState}
-        onTogglePing={pingHandler}
-        onImport={importHandler}
-      />
+      {appMode === AppMode.BUILD ? (
+        <Sidebar
+          onAddDevice={handleAddDevice}
+          addingLinkState={addingLinkState}
+          onToggleAddLink={addLinkHandler}
+          showInterfaceIps={showInterfaceIps}
+          onToggleInterfaceIps={() => setShowInterfaceIps(v => !v)}
+          pingState={pingState}
+          onTogglePing={pingHandler}
+          onImport={importHandler}
+          mode={appMode}
+          onSwitchMode={handleSwitchMode}
+        />
+      ) : (
+        <SimulationSidebar
+          ref={simSidebarRef}
+          devices={devices}
+          mode={appMode}
+          onSwitchMode={handleSwitchMode}
+          pingSourceId={simPingSourceId}
+          onStatusChange={handleSimStatusChange}
+        />
+      )}
 
       <main className="app-canvas-area">
         <TopologyCanvas
           ref={canvasRef}
           devices={devices}
           links={links}
+          readOnly={appMode === AppMode.SIMULATE}
+          pingArmed={simRunning}
           addingLinkState={addingLinkState}
           sourceDeviceId={sourceDevice}
           showInterfaceIps={showInterfaceIps}
           onUpdateDevicePosition={handleUpdateDevicePosition}
-          onSelectDevice={handleSelectDevice}
+          onSelectDevice={appMode === AppMode.SIMULATE ? handleSimDeviceClick : handleSelectDevice}
           onConfigureDevice={handleConfigureDevice}
           onRequestDeleteDevice={requestDeleteDevice}
           onConfigureLink={requestConfigureLink}
           onRequestDeleteLink={requestDeleteLink}
+          onPaneClick={appMode === AppMode.SIMULATE ? handleSimPaneClick : undefined}
           pingState={pingState}
-          pingSourceId={pingSource}
+          pingSourceId={appMode === AppMode.SIMULATE ? simPingSourceId : pingSource}
           highlightedLinkIds={highlightedLinkIds}
           pingHops={pingResult?.hops || null}
           pingAnimating={pingAnimating}

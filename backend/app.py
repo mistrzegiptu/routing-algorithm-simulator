@@ -8,6 +8,8 @@ from objects.device import Device
 from objects.computer import Computer
 from objects.router import Router
 from objects.ping import build_ping_result
+from simulation.registry import list_algorithms
+from simulation.session import SimulationSession
 
 app = FastAPI(title="Hello World")
 
@@ -75,6 +77,19 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("Client disconnected")
+
+
+@app.get("/api/simulation/algorithms")
+def get_simulation_algorithms():
+    """Registered algorithms — the UI dropdown is built from this, no hardcoding."""
+    return {"algorithms": list_algorithms()}
+
+
+@app.websocket("/ws/simulation")
+async def simulation_websocket(websocket: WebSocket):
+    # One connection = one playback session; protocol in docs/simulation-design.md §8.
+    session = SimulationSession(websocket, devices_db, links_db)
+    await session.handle()
 
 
 @app.post("/api/devices")
