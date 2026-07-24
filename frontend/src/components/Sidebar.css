@@ -180,3 +180,220 @@ button {
   cursor: pointer;
   transition: border-color 0.15s;
 }
+
+/* --- Mode switch (Buduj | Symuluj) --- */
+
+.mode-switch {
+    display: flex;
+    gap: 4px;
+    margin: 14px 16px 0;
+    padding: 4px;
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.mode-switch__btn {
+    flex: 1;
+    width: auto;
+    justify-content: center;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.mode-switch__btn:hover {
+    color: var(--text);
+}
+
+.mode-switch__btn.is-active {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+/* --- Simulation sidebar --- */
+
+.sim-select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-panel-2);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.sim-select:disabled {
+    opacity: 0.55;
+}
+
+.sim-field-label {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.sim-speed {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sim-speed__row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.sim-speed input[type="range"] {
+    width: 100%;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.sim-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.sim-controls button {
+    flex: 1;
+    width: auto;
+    justify-content: center;
+    padding: 9px 8px;
+    font-size: 13px;
+}
+
+.sim-controls button:disabled,
+.sidebar__link-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.sim-status {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+.sim-error {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    color: var(--danger);
+    background: rgba(248, 113, 113, 0.12);
+    border-radius: var(--radius-sm);
+}
+
+.sim-hint--bad {
+    color: var(--danger);
+    background: rgba(248, 113, 113, 0.12);
+}
+
+.sim-log {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    height: 180px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+.sim-log__empty {
+    color: var(--text-faint);
+}
+
+.sim-log__line--good {
+    color: var(--link);
+}
+
+.sim-log__line--bad {
+    color: var(--danger);
+}
+
+.sim-note {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-faint);
+}
+
+/* --- Narrow simulation panel (half of the build sidebar) --- */
+
+.sidebar--sim {
+    flex: 0 0 150px;
+    width: 400px;
+    min-width: 400px;
+}
+
+.sidebar--sim .sidebar__brand {
+    padding: 14px 12px 12px;
+    gap: 8px;
+}
+
+.sidebar--sim .sidebar__logo {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+}
+
+.sidebar--sim .sidebar__title {
+    font-size: 13px;
+}
+
+.sidebar--sim .sidebar__subtitle {
+    font-size: 11px;
+}
+
+.sidebar--sim .mode-switch {
+    margin: 10px 8px 0;
+}
+
+.sidebar--sim .mode-switch__btn {
+    padding: 7px 4px;
+    font-size: 12px;
+}
+
+.sidebar--sim .sidebar__scroll {
+    padding: 14px 10px;
+    gap: 20px;
+}
+
+.sidebar--sim .sim-select,
+.sidebar--sim .sidebar__link-btn {
+    padding: 9px 10px;
+    font-size: 13px;
+}
+
+/* Three control buttons don't fit side by side at 150px — stack them. */
+.sidebar--sim .sim-controls {
+    flex-direction: column;
+}
+
+.sidebar--sim .sim-status {
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sidebar--sim .sidebar__hint {
+    padding: 7px 9px;
+    font-size: 12px;
+}
+
+.sidebar--sim .sim-log {
+    padding: 8px;
+    font-size: 11px;
+}

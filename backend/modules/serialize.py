@@ -1,7 +1,10 @@
+from objects.router import Router
+from objects.computer import Computer
 from objects.device import Device
 from pydantic import BaseModel, ConfigDict
 from objects.route_entry import RouteType
 from objects.link import Link
+from typing import Literal
 
 class PortModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -26,7 +29,10 @@ class RoutingTableEntryModel(BaseModel):
     next_hop: str
     entry_type: RouteType
 
+DeviceType = Literal["router", "computer"]
+
 class DeviceModel(BaseModel):
+    type: DeviceType
     model_config = ConfigDict(from_attributes=True)
     name: str
     port_number: int
@@ -50,7 +56,11 @@ def import_topology(json_content, devices_db, links_db):
     Link._counter = 0
 
     for device in topology.devices_db:
-        new_device = Device(name=device.name, port_number=0)
+        if device.type == "router":
+            new_device = Router(name=device.name, port_number=0)
+        else:
+            new_device = Computer(name=device.name, port_number=0)
+            
         new_device.id = device.id
 
         for port in device.ports:
@@ -81,7 +91,22 @@ def import_topology(json_content, devices_db, links_db):
             dev_b.links.append(new_link)
 
 def export_topology(devices_db, links_db):
-    devices = [DeviceModel.model_validate(device) for device in devices_db]
+    devices = []
+    for device in devices_db:
+        device_type = "router" if isinstance(device, Router) else "computer"
+
+        device_data = {
+            "type": device_type,
+            "name": device.name,
+            "port_number": device.port_number,
+            "ports": device.ports,
+            "id": device.id,
+            "routing_table": device.routing_table
+        }
+
+        device_model = DeviceModel.model_validate(device_data)
+        devices.append(device_model)
+
     links = [LinkModel.model_validate(link) for link in links_db]
 
     return ExportedModel(devices_db=devices, links_db=links).model_dump()

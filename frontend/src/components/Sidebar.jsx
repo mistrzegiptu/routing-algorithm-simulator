@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import AddItemForm from "../devices/AddItemForm.jsx";
+import ModeSwitch from "./ModeSwitch.jsx";
 import { AddingLinkState } from "../models/AddingLinkState.js";
 import { PingState } from "../models/PingState.js";
 import routerImg from "../../images/router.png";
@@ -16,7 +17,9 @@ export default function Sidebar({
   onToggleInterfaceIps,
   pingState = PingState.NORMAL,
   onTogglePing,
-  onImport
+  onImport,
+  mode,
+  onSwitchMode
 }) {
   const isLinking = addingLinkState !== AddingLinkState.NORMAL;
   const isPinging = pingState !== PingState.NORMAL;
@@ -95,6 +98,7 @@ export default function Sidebar({
         </div>
       </header>
 
+      <ModeSwitch mode={mode} onSwitchMode={onSwitchMode} />
 
       <div className="sidebar__scroll">
         <section className="sidebar__section">
