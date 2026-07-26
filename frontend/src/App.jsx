@@ -10,7 +10,7 @@ import EditLinkModal from "./modals/EditLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
 import ConfirmDialog from "./modals/ConfirmDialog.jsx";
 
-import { saveLinkRoute, updateDevice, pingDevice, deleteDevice, exportNetwork } from "./api/device_api.js";
+import { saveLinkRoute, updateLink, deleteLink, updateDevice, pingDevice, deleteDevice, exportNetwork } from "./api/device_api.js";
 import "./App.css";
 
 function App() {
