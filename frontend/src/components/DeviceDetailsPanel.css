@@ -26,19 +26,32 @@
 }
 
 .close-btn {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
   background-color: #555;
   color: white;
-  border: none;
-  padding: 6px;
-  border-radius: 4px;
   cursor: pointer;
-  font-size: 20px;
-  line-height: 1;
-  margin: 0;
+  transition: background-color 0.2s;
 }
 
 .close-btn:hover {
   background-color: #666;
+}
+
+.close-btn__icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  display: block;
 }
 
 .right-panel-content {

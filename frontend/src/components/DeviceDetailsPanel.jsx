@@ -100,7 +100,11 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
                 {device.type === 'router' ? 'Router' : 'Komputer'}
             </span>
             </div>
-            <button className="close-btn" onClick={onClose}>✕</button>
+            <button className="close-btn" onClick={onClose} title="Zamknij" aria-label="Zamknij">
+                <svg className="close-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                </svg>
+            </button>
         </header>
 
         <div className="right-panel-content">
