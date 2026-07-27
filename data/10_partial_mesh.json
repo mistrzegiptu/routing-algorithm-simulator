@@ -1,6 +1,7 @@
 ﻿{
   "devices_db": [
     {
+      "type": "router",
       "name": "R0",
       "port_number": 4,
       "ports": [
@@ -9,15 +10,15 @@
           "mask": 30
         },
         {
-          "ip": "10.0.19.2",
+          "ip": "10.0.23.2",
           "mask": 30
         },
         {
-          "ip": "10.0.20.1",
+          "ip": "10.0.24.1",
           "mask": 30
         },
         {
-          "ip": "10.0.21.1",
+          "ip": "10.0.25.1",
           "mask": 30
         }
       ],
@@ -25,6 +26,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R1",
       "port_number": 3,
       "ports": [
@@ -37,7 +39,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.22.1",
+          "ip": "10.0.26.1",
           "mask": 30
         }
       ],
@@ -45,6 +47,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R2",
       "port_number": 4,
       "ports": [
@@ -57,11 +60,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.23.1",
+          "ip": "10.0.27.1",
           "mask": 30
         },
         {
-          "ip": "10.0.24.1",
+          "ip": "10.0.28.1",
           "mask": 30
         }
       ],
@@ -69,6 +72,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R3",
       "port_number": 4,
       "ports": [
@@ -81,11 +85,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.25.1",
+          "ip": "10.0.29.1",
           "mask": 30
         },
         {
-          "ip": "10.0.26.1",
+          "ip": "10.0.30.1",
           "mask": 30
         }
       ],
@@ -93,6 +97,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R4",
       "port_number": 4,
       "ports": [
@@ -105,11 +110,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.27.1",
+          "ip": "10.0.31.1",
           "mask": 30
         },
         {
-          "ip": "10.0.28.1",
+          "ip": "10.0.32.1",
           "mask": 30
         }
       ],
@@ -117,8 +122,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R5",
-      "port_number": 4,
+      "port_number": 3,
       "ports": [
         {
           "ip": "10.0.4.2",
@@ -129,11 +135,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.20.2",
-          "mask": 30
-        },
-        {
-          "ip": "10.0.29.1",
+          "ip": "10.0.33.1",
           "mask": 30
         }
       ],
@@ -141,6 +143,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R6",
       "port_number": 4,
       "ports": [
@@ -153,11 +156,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.30.1",
+          "ip": "10.0.24.2",
           "mask": 30
         },
         {
-          "ip": "10.0.31.1",
+          "ip": "10.0.34.1",
           "mask": 30
         }
       ],
@@ -165,6 +168,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R7",
       "port_number": 3,
       "ports": [
@@ -177,7 +181,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.32.1",
+          "ip": "10.0.35.1",
           "mask": 30
         }
       ],
@@ -185,6 +189,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R8",
       "port_number": 4,
       "ports": [
@@ -197,11 +202,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.25.2",
+          "ip": "10.0.27.2",
           "mask": 30
         },
         {
-          "ip": "10.0.33.1",
+          "ip": "10.0.36.1",
           "mask": 30
         }
       ],
@@ -209,8 +214,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R9",
-      "port_number": 3,
+      "port_number": 4,
       "ports": [
         {
           "ip": "10.0.8.2",
@@ -221,7 +227,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.34.1",
+          "ip": "10.0.29.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.37.1",
           "mask": 30
         }
       ],
@@ -229,6 +239,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R10",
       "port_number": 4,
       "ports": [
@@ -241,11 +252,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.21.2",
+          "ip": "10.0.31.2",
           "mask": 30
         },
         {
-          "ip": "10.0.35.1",
+          "ip": "10.0.38.1",
           "mask": 30
         }
       ],
@@ -253,6 +264,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R11",
       "port_number": 4,
       "ports": [
@@ -265,11 +277,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.22.2",
+          "ip": "10.0.33.2",
           "mask": 30
         },
         {
-          "ip": "10.0.26.2",
+          "ip": "10.0.39.1",
           "mask": 30
         }
       ],
@@ -277,8 +289,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R12",
-      "port_number": 3,
+      "port_number": 4,
       "ports": [
         {
           "ip": "10.0.11.2",
@@ -289,7 +302,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.23.2",
+          "ip": "10.0.25.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.40.1",
           "mask": 30
         }
       ],
@@ -297,8 +314,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R13",
-      "port_number": 3,
+      "port_number": 4,
       "ports": [
         {
           "ip": "10.0.12.2",
@@ -309,7 +327,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.27.2",
+          "ip": "10.0.26.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.41.1",
           "mask": 30
         }
       ],
@@ -317,8 +339,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R14",
-      "port_number": 4,
+      "port_number": 3,
       "ports": [
         {
           "ip": "10.0.13.2",
@@ -329,11 +352,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.28.2",
-          "mask": 30
-        },
-        {
-          "ip": "10.0.30.2",
+          "ip": "10.0.34.2",
           "mask": 30
         }
       ],
@@ -341,8 +360,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R15",
-      "port_number": 4,
+      "port_number": 3,
       "ports": [
         {
           "ip": "10.0.14.2",
@@ -353,11 +373,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.29.2",
-          "mask": 30
-        },
-        {
-          "ip": "10.0.35.2",
+          "ip": "10.0.30.2",
           "mask": 30
         }
       ],
@@ -365,6 +381,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R16",
       "port_number": 3,
       "ports": [
@@ -377,7 +394,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.31.2",
+          "ip": "10.0.36.2",
           "mask": 30
         }
       ],
@@ -385,8 +402,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R17",
-      "port_number": 4,
+      "port_number": 3,
       "ports": [
         {
           "ip": "10.0.16.2",
@@ -397,11 +415,7 @@
           "mask": 30
         },
         {
-          "ip": "10.0.24.2",
-          "mask": 30
-        },
-        {
-          "ip": "10.0.32.2",
+          "ip": "10.0.35.2",
           "mask": 30
         }
       ],
@@ -409,8 +423,9 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R18",
-      "port_number": 3,
+      "port_number": 4,
       "ports": [
         {
           "ip": "10.0.17.2",
@@ -421,7 +436,11 @@
           "mask": 30
         },
         {
-          "ip": "10.0.33.2",
+          "ip": "10.0.28.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.40.2",
           "mask": 30
         }
       ],
@@ -429,6 +448,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R19",
       "port_number": 3,
       "ports": [
@@ -441,11 +461,95 @@
           "mask": 30
         },
         {
-          "ip": "10.0.34.2",
+          "ip": "10.0.37.2",
           "mask": 30
         }
       ],
       "id": 19,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R20",
+      "port_number": 3,
+      "ports": [
+        {
+          "ip": "10.0.19.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.20.1",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.32.2",
+          "mask": 30
+        }
+      ],
+      "id": 20,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R21",
+      "port_number": 3,
+      "ports": [
+        {
+          "ip": "10.0.20.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.21.1",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.41.2",
+          "mask": 30
+        }
+      ],
+      "id": 21,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R22",
+      "port_number": 3,
+      "ports": [
+        {
+          "ip": "10.0.21.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.22.1",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.38.2",
+          "mask": 30
+        }
+      ],
+      "id": 22,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R23",
+      "port_number": 3,
+      "ports": [
+        {
+          "ip": "10.0.22.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.23.1",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.39.2",
+          "mask": 30
+        }
+      ],
+      "id": 23,
       "routing_table": []
     }
   ],
@@ -643,147 +747,187 @@
     {
       "id": 19,
       "device_a": 19,
-      "device_b": 0,
+      "device_b": 20,
       "port_a_num": 1,
-      "port_b_num": 1,
+      "port_b_num": 0,
       "bandwidth": 100,
       "delay": 100,
       "unit": "Mbps"
     },
     {
       "id": 20,
-      "device_a": 0,
-      "device_b": 5,
-      "port_a_num": 2,
-      "port_b_num": 2,
-      "bandwidth": 100,
-      "delay": 50,
+      "device_a": 20,
+      "device_b": 21,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 10,
+      "delay": 10,
       "unit": "Mbps"
     },
     {
       "id": 21,
-      "device_a": 0,
-      "device_b": 10,
-      "port_a_num": 3,
-      "port_b_num": 2,
-      "bandwidth": 10,
-      "delay": 100,
-      "unit": "Mbps"
-    },
-    {
-      "id": 22,
-      "device_a": 1,
-      "device_b": 11,
-      "port_a_num": 2,
-      "port_b_num": 2,
+      "device_a": 21,
+      "device_b": 22,
+      "port_a_num": 1,
+      "port_b_num": 0,
       "bandwidth": 1000,
       "delay": 20,
       "unit": "Mbps"
     },
     {
-      "id": 23,
-      "device_a": 2,
-      "device_b": 12,
-      "port_a_num": 2,
-      "port_b_num": 2,
+      "id": 22,
+      "device_a": 22,
+      "device_b": 23,
+      "port_a_num": 1,
+      "port_b_num": 0,
       "bandwidth": 100,
-      "delay": 10,
+      "delay": 50,
+      "unit": "Mbps"
+    },
+    {
+      "id": 23,
+      "device_a": 23,
+      "device_b": 0,
+      "port_a_num": 1,
+      "port_b_num": 1,
+      "bandwidth": 10,
+      "delay": 100,
       "unit": "Mbps"
     },
     {
       "id": 24,
-      "device_a": 2,
-      "device_b": 17,
-      "port_a_num": 3,
+      "device_a": 0,
+      "device_b": 6,
+      "port_a_num": 2,
       "port_b_num": 2,
-      "bandwidth": 10,
+      "bandwidth": 100,
       "delay": 50,
       "unit": "Mbps"
     },
     {
       "id": 25,
-      "device_a": 3,
-      "device_b": 8,
-      "port_a_num": 2,
+      "device_a": 0,
+      "device_b": 12,
+      "port_a_num": 3,
       "port_b_num": 2,
-      "bandwidth": 1000,
+      "bandwidth": 10,
       "delay": 100,
       "unit": "Mbps"
     },
     {
       "id": 26,
-      "device_a": 3,
-      "device_b": 11,
-      "port_a_num": 3,
-      "port_b_num": 3,
-      "bandwidth": 100,
+      "device_a": 1,
+      "device_b": 13,
+      "port_a_num": 2,
+      "port_b_num": 2,
+      "bandwidth": 1000,
       "delay": 20,
       "unit": "Mbps"
     },
     {
       "id": 27,
-      "device_a": 4,
-      "device_b": 13,
+      "device_a": 2,
+      "device_b": 8,
       "port_a_num": 2,
       "port_b_num": 2,
-      "bandwidth": 10,
+      "bandwidth": 100,
       "delay": 10,
       "unit": "Mbps"
     },
     {
       "id": 28,
-      "device_a": 4,
-      "device_b": 14,
+      "device_a": 2,
+      "device_b": 18,
       "port_a_num": 3,
       "port_b_num": 2,
-      "bandwidth": 1000,
+      "bandwidth": 10,
       "delay": 50,
       "unit": "Mbps"
     },
     {
       "id": 29,
-      "device_a": 5,
-      "device_b": 15,
-      "port_a_num": 3,
+      "device_a": 3,
+      "device_b": 9,
+      "port_a_num": 2,
       "port_b_num": 2,
-      "bandwidth": 100,
+      "bandwidth": 1000,
       "delay": 100,
       "unit": "Mbps"
     },
     {
       "id": 30,
-      "device_a": 6,
-      "device_b": 14,
-      "port_a_num": 2,
-      "port_b_num": 3,
-      "bandwidth": 10,
+      "device_a": 3,
+      "device_b": 15,
+      "port_a_num": 3,
+      "port_b_num": 2,
+      "bandwidth": 100,
       "delay": 20,
       "unit": "Mbps"
     },
     {
       "id": 31,
-      "device_a": 6,
-      "device_b": 16,
+      "device_a": 4,
+      "device_b": 10,
+      "port_a_num": 2,
+      "port_b_num": 2,
+      "bandwidth": 10,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 32,
+      "device_a": 4,
+      "device_b": 20,
       "port_a_num": 3,
+      "port_b_num": 2,
+      "bandwidth": 1000,
+      "delay": 50,
+      "unit": "Mbps"
+    },
+    {
+      "id": 33,
+      "device_a": 5,
+      "device_b": 11,
+      "port_a_num": 2,
+      "port_b_num": 2,
+      "bandwidth": 100,
+      "delay": 100,
+      "unit": "Mbps"
+    },
+    {
+      "id": 34,
+      "device_a": 6,
+      "device_b": 14,
+      "port_a_num": 3,
+      "port_b_num": 2,
+      "bandwidth": 10,
+      "delay": 20,
+      "unit": "Mbps"
+    },
+    {
+      "id": 35,
+      "device_a": 7,
+      "device_b": 17,
+      "port_a_num": 2,
       "port_b_num": 2,
       "bandwidth": 1000,
       "delay": 10,
       "unit": "Mbps"
     },
     {
-      "id": 32,
-      "device_a": 7,
-      "device_b": 17,
-      "port_a_num": 2,
-      "port_b_num": 3,
+      "id": 36,
+      "device_a": 8,
+      "device_b": 16,
+      "port_a_num": 3,
+      "port_b_num": 2,
       "bandwidth": 100,
       "delay": 50,
       "unit": "Mbps"
     },
     {
-      "id": 33,
-      "device_a": 8,
-      "device_b": 18,
+      "id": 37,
+      "device_a": 9,
+      "device_b": 19,
       "port_a_num": 3,
       "port_b_num": 2,
       "bandwidth": 10,
@@ -791,23 +935,43 @@
       "unit": "Mbps"
     },
     {
-      "id": 34,
-      "device_a": 9,
-      "device_b": 19,
-      "port_a_num": 2,
+      "id": 38,
+      "device_a": 10,
+      "device_b": 22,
+      "port_a_num": 3,
       "port_b_num": 2,
       "bandwidth": 1000,
       "delay": 20,
       "unit": "Mbps"
     },
     {
-      "id": 35,
-      "device_a": 10,
-      "device_b": 15,
+      "id": 39,
+      "device_a": 11,
+      "device_b": 23,
       "port_a_num": 3,
-      "port_b_num": 3,
+      "port_b_num": 2,
       "bandwidth": 100,
       "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 40,
+      "device_a": 12,
+      "device_b": 18,
+      "port_a_num": 3,
+      "port_b_num": 3,
+      "bandwidth": 10,
+      "delay": 50,
+      "unit": "Mbps"
+    },
+    {
+      "id": 41,
+      "device_a": 13,
+      "device_b": 21,
+      "port_a_num": 3,
+      "port_b_num": 2,
+      "bandwidth": 1000,
+      "delay": 100,
       "unit": "Mbps"
     }
   ]

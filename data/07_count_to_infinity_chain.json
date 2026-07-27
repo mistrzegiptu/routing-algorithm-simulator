@@ -1,6 +1,7 @@
 ﻿{
   "devices_db": [
     {
+      "type": "router",
       "name": "R0",
       "port_number": 1,
       "ports": [
@@ -13,6 +14,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R1",
       "port_number": 2,
       "ports": [
@@ -29,6 +31,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R2",
       "port_number": 2,
       "ports": [
@@ -45,6 +48,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R3",
       "port_number": 2,
       "ports": [
@@ -61,6 +65,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R4",
       "port_number": 2,
       "ports": [
@@ -77,6 +82,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R5",
       "port_number": 2,
       "ports": [
@@ -93,6 +99,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R6",
       "port_number": 2,
       "ports": [
@@ -109,6 +116,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R7",
       "port_number": 2,
       "ports": [
@@ -125,6 +133,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R8",
       "port_number": 2,
       "ports": [
@@ -141,6 +150,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R9",
       "port_number": 2,
       "ports": [
@@ -157,6 +167,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R10",
       "port_number": 2,
       "ports": [
@@ -173,6 +184,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R11",
       "port_number": 2,
       "ports": [
@@ -189,6 +201,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R12",
       "port_number": 2,
       "ports": [
@@ -205,6 +218,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R13",
       "port_number": 2,
       "ports": [
@@ -221,6 +235,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R14",
       "port_number": 2,
       "ports": [
@@ -237,6 +252,7 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R15",
       "port_number": 2,
       "ports": [
@@ -253,15 +269,67 @@
       "routing_table": []
     },
     {
+      "type": "router",
       "name": "R16",
-      "port_number": 1,
+      "port_number": 2,
       "ports": [
         {
           "ip": "10.0.15.2",
           "mask": 30
+        },
+        {
+          "ip": "10.0.16.1",
+          "mask": 30
         }
       ],
       "id": 16,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R17",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.16.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.17.1",
+          "mask": 30
+        }
+      ],
+      "id": 17,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R18",
+      "port_number": 2,
+      "ports": [
+        {
+          "ip": "10.0.17.2",
+          "mask": 30
+        },
+        {
+          "ip": "10.0.18.1",
+          "mask": 30
+        }
+      ],
+      "id": 18,
+      "routing_table": []
+    },
+    {
+      "type": "router",
+      "name": "R19",
+      "port_number": 1,
+      "ports": [
+        {
+          "ip": "10.0.18.2",
+          "mask": 30
+        }
+      ],
+      "id": 19,
       "routing_table": []
     }
   ],
@@ -420,6 +488,36 @@
       "id": 15,
       "device_a": 15,
       "device_b": 16,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 16,
+      "device_a": 16,
+      "device_b": 17,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 17,
+      "device_a": 17,
+      "device_b": 18,
+      "port_a_num": 1,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 10,
+      "unit": "Mbps"
+    },
+    {
+      "id": 18,
+      "device_a": 18,
+      "device_b": 19,
       "port_a_num": 1,
       "port_b_num": 0,
       "bandwidth": 100,
