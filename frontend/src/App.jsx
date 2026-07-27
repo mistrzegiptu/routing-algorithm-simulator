@@ -45,6 +45,7 @@ function App() {
           bandwidth: l.bandwidth,
           delay: l.delay,
           bandwidthUnit: l.unit,
+          weight: l.weight,
         }));
 
         setDevices(newDevices);
@@ -339,6 +340,7 @@ function App() {
         bandwidth: saved.bandwidth,
         delay: saved.delay,
         bandwidthUnit: saved.unit,
+        weight: saved.weight,
       }]);
       // Re-arm for the next pair instead of exiting linking mode entirely.
       setSourceDevice(null);
@@ -367,7 +369,7 @@ function App() {
       const saved = await updateLink(id, updatedData);
       setLinks(prev =>
         prev.map(l => (l.id === id
-          ? { ...l, bandwidth: saved.bandwidth, delay: saved.delay, bandwidthUnit: saved.unit }
+          ? { ...l, bandwidth: saved.bandwidth, delay: saved.delay, bandwidthUnit: saved.unit, weight: saved.weight }
           : l))
       );
       setSelectedLinkId(null);
@@ -565,6 +567,7 @@ function App() {
           bandwidth={selectedLink.bandwidth}
           unit={selectedLink.bandwidthUnit}
           delay={selectedLink.delay}
+          weight={selectedLink.weight}
           onSave={(updatedData) => handleSaveLinkConfig(selectedLink.id, updatedData)}
           onDelete={() => requestDeleteLink(selectedLink.id)}
           onClose={handleCloseLinkConfig}

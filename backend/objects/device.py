@@ -107,14 +107,14 @@ class Device:
 
         raise ValueError(f"Device '{self.name}' has no available interface")
 
-    def add_link(self, device_b, port_a_num, port_b_num, bandwidth, delay, unit):
+    def add_link(self, device_b, port_a_num, port_b_num, bandwidth, delay, unit, weight=1):
         if port_a_num >= self.port_number or port_b_num >= device_b.port_number:
             raise ValueError("Invalid port number")
-        
+
         if not self.check_port_availability(port_a_num) or not device_b.check_port_availability(port_b_num):
             raise ValueError("Port is already in use")
-        
-        new_link = Link(self.id, device_b.id, port_a_num, port_b_num, bandwidth, delay, unit)
+
+        new_link = Link(self.id, device_b.id, port_a_num, port_b_num, bandwidth, delay, unit, weight)
         self.links.append(new_link)
         device_b.links.append(new_link)
         return new_link
