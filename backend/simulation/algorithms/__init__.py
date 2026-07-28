@@ -6,3 +6,5 @@ add one import line below.
 """
 
 from . import random_walk  # noqa: F401
+from . import flooding
+from . import rpf
