@@ -53,17 +53,26 @@
 }
 
 .add-item__btn {
+    position: relative;
     flex: 0 0 auto;
     width: 36px;
+    padding: 0;
     border-radius: 7px;
     border: none;
     background: var(--card-accent, var(--accent));
     color: #0c0e14;
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
     cursor: pointer;
     transition: filter 0.15s, opacity 0.15s;
+}
+
+.add-item__btn-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translate(-50%, -50%);
+    display: block;
 }
 
 .add-item__btn:hover {
