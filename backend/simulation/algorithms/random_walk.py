@@ -6,16 +6,14 @@ from ..registry import register
 class RandomWalk(RoutingAlgorithm):
     """Trivial algorithm #1: forward to a random neighbor.
 
-    No control plane, no routing tables — a pure per-hop coin flip. The only
-    refinement is avoiding an immediate U-turn (don't send the packet straight
-    back where it came from) unless that is the only option, which keeps the
-    walk from ping-ponging on dead-end branches forever. TTL still bounds the
-    worst case.
+    No control plane, no routing tables — a pure per-hop coin flip over every
+    neighbor, including the one the packet just arrived from. TTL bounds the
+    worst case (e.g. bouncing back and forth on a dead-end branch).
     """
 
     name = "random_walk"
     display_name = "Random walk"
-    description = "Router przekazuje pakiet losowemu sąsiadowi (unika zawracania)."
+    description = "Router przekazuje pakiet losowemu sąsiadowi."
 
     def on_packet(self, ctx, node, packet):
         options = ctx.net.neighbors(node.id)
@@ -23,6 +21,4 @@ class RandomWalk(RoutingAlgorithm):
             ctx.drop(node, packet, "dead_end")
             return
 
-        prev = packet.meta.get("prev_node")
-        candidates = [adj for adj in options if adj.neighbor_id != prev] or options
-        ctx.forward(node, packet, ctx.rng.choice(candidates))
+        ctx.forward(node, packet, ctx.rng.choice(options))
