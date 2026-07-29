@@ -5,6 +5,4 @@ new algorithm to the app is: create the module, subclass RoutingAlgorithm,
 add one import line below.
 """
 
-from . import random_walk  # noqa: F401
-from . import flooding
-from . import rpf
+from . import random_walk, hot_potato, flooding, rpf
