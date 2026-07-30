@@ -274,6 +274,11 @@ class SimulationEngine:
                 return
         packet.meta["prev_node"] = node_id
 
+        payload = {"ttl": packet.ttl}
+        icmp = packet.meta.get("icmp")
+        if icmp:
+            payload["icmp"] = icmp
+
         self._emit(
             PACKET_SENT,
             kind=packet.kind,
@@ -282,7 +287,7 @@ class SimulationEngine:
             from_id=node_id,
             to_id=adj.neighbor_id,
             link_id=adj.link_id,
-            payload={"ttl": packet.ttl},
+            payload=payload,
         )
         self._push(self.now + adj.delay, _Arrival(packet, adj.neighbor_id, adj.link_id, node_id))
 

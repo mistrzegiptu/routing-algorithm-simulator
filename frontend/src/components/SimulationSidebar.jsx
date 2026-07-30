@@ -49,12 +49,11 @@ function formatEvent(ev, nameOf) {
 }
 
 const SimulationSidebar = forwardRef(function SimulationSidebar(
-  { devices, mode, onSwitchMode, pingSourceId, onStatusChange },
+  { devices, mode, onSwitchMode, pingSourceId, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset },
   ref
 ) {
   const [algorithms, setAlgorithms] = useState([]);
   const [algorithm, setAlgorithm] = useState("");
-  const [speed, setSpeed] = useState(1);
 
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState(null);
@@ -70,6 +69,8 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   devicesRef.current = devices;
   const onStatusChangeRef = useRef(onStatusChange);
   onStatusChangeRef.current = onStatusChange;
+  const onSimEventRef = useRef(onSimEvent);
+  onSimEventRef.current = onSimEvent;
 
   useEffect(() => {
     fetchAlgorithms()
@@ -102,6 +103,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     const socket = new SimulationSocket({
       onEvent: (ev) => {
         setEventCount((n) => n + 1);
+        onSimEventRef.current?.(ev);
         const line = formatEvent(ev, nameOf);
         if (line) setLogLines((prev) => [...prev.slice(-99), line]);
       },
@@ -125,6 +127,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     setFinished(null);
     setEventCount(0);
     setLogLines([]);
+    onSimReset?.();
     try {
       const socket = await ensureSocket();
       socket.start({ algorithm, speed });
@@ -141,7 +144,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   };
 
   const handleSpeedChange = (value) => {
-    setSpeed(value);
+    onSpeedChange?.(value);
     if (socketRef.current?.isOpen) socketRef.current.setSpeed(value);
   };
 
@@ -260,10 +263,16 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
               </span>
             ))}
           </div>
-          <p className="sim-note">
-            Animacja pakietów na kanwie — w przygotowaniu. Na razie przebieg
-            widać w logu powyżej.
-          </p>
+          <div className="sim-legend">
+            <span className="sim-legend__item">
+              <span className="sim-legend__dot" style={{ background: "#38bdf8" }} />
+              Ping (żądanie)
+            </span>
+            <span className="sim-legend__item">
+              <span className="sim-legend__dot" style={{ background: "#34d399" }} />
+              Odpowiedź
+            </span>
+          </div>
         </section>
       </div>
     </aside>
