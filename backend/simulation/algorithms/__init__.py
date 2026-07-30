@@ -5,4 +5,4 @@ new algorithm to the app is: create the module, subclass RoutingAlgorithm,
 add one import line below.
 """
 
-from . import random_walk, hot_potato, flooding, rpf
+from . import random_walk, hot_potato, flooding, rpf, backward_learning

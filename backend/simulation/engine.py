@@ -212,6 +212,7 @@ class SimulationEngine:
         # The engine only auto-delivers data packets; control packets always
         # belong to the algorithm, whatever their addressing.
         if packet.kind == KIND_DATA and self._is_delivered(node, packet):
+            self.algorithm.on_deliver(self._ctx, node, packet)
             self._deliver(node, packet)
             return
 
