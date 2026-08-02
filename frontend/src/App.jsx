@@ -572,6 +572,7 @@ function App() {
         <SimulationSidebar
           ref={simSidebarRef}
           devices={devices}
+          links={links}
           mode={appMode}
           onSwitchMode={handleSwitchMode}
           pingSourceId={simPingSourceId}
