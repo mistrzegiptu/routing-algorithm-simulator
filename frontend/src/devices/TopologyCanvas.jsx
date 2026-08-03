@@ -14,6 +14,7 @@ import '@xyflow/react/dist/style.css';
 import DeviceNode from './DeviceNode.jsx';
 import LinkEdge from './LinkEdge.jsx';
 import PingOverlay from '../models/PingOverlay.jsx';
+import SimulationOverlay from '../models/SimulationOverlay.jsx';
 import { AddingLinkState } from '../models/AddingLinkState.js';
 import { PingState } from '../models/PingState.js';
 import { portCidr } from '../utils/format.js';
@@ -44,6 +45,11 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   pingHops = null,
   pingAnimating = false,
   onPingAnimationComplete = null,
+  // Simulation packet animation
+  simActive = false,
+  simSegments = [],
+  simSpeed = 1,
+  simPaused = false,
 }, ref) {
   const wrapperRef = useRef(null);
   const { screenToFlowPosition } = useReactFlow();
@@ -188,6 +194,10 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
             nodes={nodes}
             onComplete={onPingAnimationComplete}
           />
+        )}
+
+        {simActive && (
+          <SimulationOverlay segments={simSegments} speed={simSpeed} paused={simPaused} />
         )}
       </ReactFlow>
     </div>

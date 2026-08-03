@@ -186,20 +186,24 @@ def test_random_walk_is_deterministic_per_seed():
     assert run(42) == run(42)
 
 
-def test_random_walk_avoids_backtrack_when_it_has_a_choice():
+def test_random_walk_can_backtrack():
+    # Uniform over every neighbor, including the one the packet came from —
+    # over enough seeds a U-turn has to show up even where there's a choice.
     devices, links = diamond_topology()
     pc1, pc2 = devices[0], devices[-1]
-    engine = make_engine(devices, links, get_algorithm("random_walk"), seed=3)
 
-    engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
-    events = drain(engine)
+    def has_backtrack(seed):
+        engine = make_engine(devices, links, get_algorithm("random_walk"), seed=seed)
+        engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+        events = drain(engine)
 
-    # Rebuild each packet's node path from its sent events. A U-turn
-    # (A → B → A) is only legal at a dead end, i.e. when B has one neighbor.
-    paths = {}
-    for e in by_type(events, "packet_sent"):
-        paths.setdefault(e.packet_id, [e.from_id]).append(e.to_id)
-    for path in paths.values():
-        for i in range(2, len(path)):
-            if path[i] == path[i - 2]:
-                assert len(engine.snapshot.neighbors(path[i - 1])) == 1, f"U-turn in {path}"
+        paths = {}
+        for e in by_type(events, "packet_sent"):
+            paths.setdefault(e.packet_id, [e.from_id]).append(e.to_id)
+        return any(
+            path[i] == path[i - 2]
+            for path in paths.values()
+            for i in range(2, len(path))
+        )
+
+    assert any(has_backtrack(seed) for seed in range(50))

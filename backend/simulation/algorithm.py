@@ -51,3 +51,13 @@ class RoutingAlgorithm(ABC):
 
     def on_timer(self, ctx, node, timer):
         """A timer scheduled via ``ctx.schedule_timer`` fired at ``node``."""
+
+    def on_deliver(self, ctx, node, packet):
+        """A data packet was auto-delivered at ``node`` (its destination).
+
+        The engine handles delivery itself (emitting ``packet_delivered`` and
+        generating ICMP echo replies), so ``on_packet`` is never called for
+        these arrivals.  Algorithms that learn from incoming traffic — like
+        backward learning — override this hook to update their tables from
+        packets that would otherwise be invisible to the algorithm.
+        """
