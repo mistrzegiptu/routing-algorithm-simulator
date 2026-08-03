@@ -1,10 +1,12 @@
 import asyncio
 
+from .packet import Packet
 from fastapi import WebSocketDisconnect
 
 from .engine import SimConfig, SimulationEngine
 from .registry import ALGORITHMS, get_algorithm
 from .snapshot import NetworkSnapshot
+from .events import KIND_DATA
 
 MIN_SPEED, MAX_SPEED = 0.01, 100.0
 
@@ -190,6 +192,8 @@ class SimulationSession:
         except (KeyError, TypeError, ValueError):
             return await self._send_error("Ping wymaga pól source_id i target_id")
 
+        target_ip = engine.snapshot.first_ip(target_id)
+
         # Validate against the snapshot — devices added after start don't exist
         # in this world.
         if engine.snapshot.node(source_id) is None or engine.snapshot.node(target_id) is None:
@@ -197,7 +201,18 @@ class SimulationSession:
         if source_id == target_id:
             return await self._send_error("Źródło i cel pingu muszą być różne")
 
-        packet_id = engine.inject_ping(source_id, target_id, self._sim_now())
+        packet = Packet(
+            engine._next_packet_id(),
+            kind=KIND_DATA,
+            protocol="icmp",
+            src_id=source_id,
+            dst_id=target_id,
+            dst_ip=target_ip,
+            ttl=engine.config.ttl,
+            meta={"icmp": "request", "created_t": self._sim_now()}
+        )
+
+        packet_id = engine.inject_packet(source_id, self._sim_now(), packet)
         await self._send({
             "type": "ping_sent",
             "packet_id": packet_id,
