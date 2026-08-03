@@ -14,6 +14,7 @@ class Link:
     bandwidth: int
     delay: int
     unit: str
+    weight: int = 1
 
     def __post_init__(self):
         self.id = Link._counter
@@ -39,3 +40,6 @@ class Link:
 
     def set_unit(self, unit: str):
         self.unit = unit
+
+    def set_weight(self, weight: int):
+        self.weight = weight
