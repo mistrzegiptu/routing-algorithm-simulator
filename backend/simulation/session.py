@@ -201,15 +201,12 @@ class SimulationSession:
         if source_id == target_id:
             return await self._send_error("Źródło i cel pingu muszą być różne")
 
-        packet = Packet(
-            engine._next_packet_id(),
-            kind=KIND_DATA,
-            protocol="icmp",
-            src_id=source_id,
-            dst_id=target_id,
-            dst_ip=target_ip,
-            ttl=engine.config.ttl,
-            meta={"icmp": "request", "created_t": self._sim_now()}
+        packet = Packet.create_ping_packet(packet_id=engine._next_packet_id(),
+                    src_id=source_id,
+                    dst_id=target_id,
+                    dst_ip=target_ip,
+                    ttl=engine.config.ttl,
+                    time=self._sim_now()
         )
 
         packet_id = engine.inject_packet(source_id, self._sim_now(), packet)

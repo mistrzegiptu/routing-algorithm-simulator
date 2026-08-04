@@ -216,20 +216,16 @@ class SimulationEngine:
         # Real ICMP: the destination answers, and the reply has to find its
         # own way back through the same algorithm (a random walk wanders home).
         if icmp == "request":
-            reply = Packet(
-                id=self._next_packet_id(),
-                kind=KIND_DATA,
-                protocol="icmp",
+            reply = Packet.create_ping_packet(
+                packet_id=self._next_packet_id(),
                 src_id=node.id,
                 dst_id=packet.src_id,
                 dst_ip=self.snapshot.first_ip(packet.src_id),
                 ttl=self.config.ttl,
-                meta={
-                    "icmp": "reply",
-                    "request_id": packet.id,
-                    "created_t": self.now,
-                    "request_created_t": packet.meta.get("created_t"),
-                },
+                time=self.now,
+                icmp_type="reply",
+                request_id=packet.id,
+                request_created_t=packet.meta.get("created_t")
             )
             self._push(self.now, _Arrival(reply, node.id, None, None))
 
