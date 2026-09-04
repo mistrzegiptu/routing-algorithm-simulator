@@ -2,9 +2,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Link:
-    _counter = 0
-
-    id: int = field(init=False)
+    id: int
 
     device_a: int
     device_b: int
@@ -14,11 +12,7 @@ class Link:
     bandwidth: int
     delay: int
     unit: str
-
-    def __post_init__(self):
-        self.id = Link._counter
-        Link._counter += 1
-
+    
     def set_device_a(self, device_a: int):
         self.device_a = device_a
 

@@ -45,54 +45,55 @@ class ExportedModel(BaseModel):
     links_db: list[LinkModel]
 
 
-def import_topology(json_content, devices_db, links_db):
-    devices_db.clear()
-    links_db.clear()
+def import_topology(json_content, store):
+    store.devices.clear()
+    store.links.clear()
+    store.ip_pool.clear()
 
     topology = ExportedModel.model_validate(json_content)
 
-    Device._counter = 0
-    Device.ip_address_pool = set()
-    Link._counter = 0
+    max_device_id = 0
+    max_link_id = 0
 
     for device in topology.devices_db:
         if device.type == "router":
-            new_device = Router(name=device.name, port_number=0)
+            new_device = Router(id=device.id, name=device.name, port_number=0)
         else:
-            new_device = Computer(name=device.name, port_number=0)
-            
-        new_device.id = device.id
+            new_device = Computer(id=device.id, name=device.name, port_number=0)
 
         for port in device.ports:
             new_device.add_port(port.ip, port.mask)
+            store.reserve_ip(port.ip)
 
         for route in device.routing_table:
             new_device.add_route(device_ip=route.dest, mask=route.mask, next_hop=route.next_hop, route_type=route.entry_type)
 
-        if new_device.id >= Device._counter:
-            Device._counter = new_device.id + 1
+        if new_device.id > max_device_id:
+            max_device_id = new_device.id
 
-        devices_db.append(new_device)
+        store.devices.append(new_device)
 
     for link in topology.links_db:
-        new_link = Link(device_a=link.device_a, device_b=link.device_b, port_a_num=link.port_a_num, port_b_num=link.port_b_num, bandwidth=link.bandwidth, delay=link.delay, unit=link.unit)
-        new_link.id = link.id
+        new_link = Link(id=link.id, device_a=link.device_a, device_b=link.device_b, port_a_num=link.port_a_num, port_b_num=link.port_b_num, bandwidth=link.bandwidth, delay=link.delay, unit=link.unit)
 
-        if new_link.id >= Link._counter:
-            Link._counter = new_link.id + 1
+        if new_link.id > max_link_id:
+            max_link_id = new_link.id
 
-        links_db.append(new_link)
+        store.links.append(new_link)
 
-        dev_a = next((d for d in devices_db if d.id == link.device_a), None)
-        dev_b = next((d for d in devices_db if d.id == link.device_b), None)
+        dev_a = next((d for d in store.devices if d.id == link.device_a), None)
+        dev_b = next((d for d in store.devices if d.id == link.device_b), None)
 
         if dev_a is not None and dev_b is not None:
             dev_a.links.append(new_link)
             dev_b.links.append(new_link)
 
-def export_topology(devices_db, links_db):
+    store._device_seq = max_device_id + 1
+    store._link_seq = max_link_id + 1
+
+def export_topology(store):
     devices = []
-    for device in devices_db:
+    for device in store.devices:
         device_type = "router" if isinstance(device, Router) else "computer"
 
         device_data = {
@@ -107,6 +108,6 @@ def export_topology(devices_db, links_db):
         device_model = DeviceModel.model_validate(device_data)
         devices.append(device_model)
 
-    links = [LinkModel.model_validate(link) for link in links_db]
+    links = [LinkModel.model_validate(link) for link in store.links]
 
     return ExportedModel(devices_db=devices, links_db=links).model_dump()

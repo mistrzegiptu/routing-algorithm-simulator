@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from modules.serialize import export_topology, import_topology
@@ -10,8 +10,14 @@ from objects.router import Router
 from objects.ping import build_ping_result
 from simulation.registry import list_algorithms
 from simulation.session import SimulationSession
+from modules.topology_store import TopologyStore
 
 app = FastAPI(title="Hello World")
+
+global_topology_store = TopologyStore()
+
+def get_topology_store():
+    return global_topology_store
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,14 +27,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-devices_db = []
-links_db = []
-
 DEVICE_CLASSES = {
     "router": Router,
     "computer": Computer,
 }
-
 
 def serialize_device(device):
     return {
@@ -38,7 +40,6 @@ def serialize_device(device):
         "type": device.__class__.__name__.lower(),
         "ports": [{"ip": p.ip, "mask": p.mask} for p in device.ports],
     }
-
 
 def serialize_link(link):
     return {
@@ -51,10 +52,6 @@ def serialize_link(link):
         "delay": link.delay,
         "unit": link.unit,
     }
-
-
-def find_device(device_id):
-    return next((d for d in devices_db if d.id == device_id), None)
 
 
 @app.get("/api/check")
@@ -86,15 +83,17 @@ def get_simulation_algorithms():
 
 
 @app.websocket("/ws/simulation")
-async def simulation_websocket(websocket: WebSocket):
+async def simulation_websocket(websocket: WebSocket, store: TopologyStore = Depends(get_topology_store)):
     # One connection = one playback session; protocol in docs/simulation-design.md §8.
-    session = SimulationSession(websocket, devices_db, links_db)
+    session = SimulationSession(websocket, store.devices, store.links)
     await session.handle()
 
 
 @app.post("/api/devices")
-def create_device(device_data: DeviceCreateRequest):
+def create_device(device_data: DeviceCreateRequest, store: TopologyStore = Depends(get_topology_store)):
     kwargs = {}
+    kwargs['id'] = store.next_device_id()
+
     if device_data.name is not None:
         kwargs['name'] = device_data.name
 
@@ -106,7 +105,7 @@ def create_device(device_data: DeviceCreateRequest):
 
     device_cls = DEVICE_CLASSES[device_data.type]
     new_device = device_cls(**kwargs)
-    devices_db.append(new_device)
+    store.devices.append(new_device)
 
     return serialize_device(new_device)
 
@@ -114,9 +113,10 @@ def create_device(device_data: DeviceCreateRequest):
 @app.put("/api/devices/{device_id}")
 def update_device(
     device_id: int,
-    device_data: DeviceUpdateRequest = Body(...)
+    device_data: DeviceUpdateRequest = Body(...),
+    store: TopologyStore = Depends(get_topology_store)
 ):
-    device = find_device(device_id)
+    device = store.find_device(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
@@ -140,8 +140,8 @@ def update_device(
 
 
 @app.delete("/api/devices/{device_id}")
-def delete_device(device_id: int):
-    device = find_device(device_id)
+def delete_device(device_id: int, store: TopologyStore = Depends(get_topology_store)):
+    device = store.find_device(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
@@ -150,7 +150,7 @@ def delete_device(device_id: int):
     # peer_id -> (peer_device, [interface indices freed by the removed links])
     freed_peer_ports = {}
     affected_links = [
-        l for l in links_db if l.device_a == device_id or l.device_b == device_id
+        l for l in store.links if l.device_a == device_id or l.device_b == device_id
     ]
     for link in affected_links:
         if link.device_a == device_id:
@@ -158,8 +158,8 @@ def delete_device(device_id: int):
         else:
             peer_id, peer_port = link.device_a, link.port_a_num
 
-        peer = find_device(peer_id)
-        links_db.remove(link)
+        peer = store.find_device(peer_id)
+        store.links.remove(link)
         removed_link_ids.append(link.id)
         if peer:
             peer.links = [l for l in peer.links if l.id != link.id]
@@ -173,16 +173,16 @@ def delete_device(device_id: int):
 
     # Return this device's IP addresses to the shared pool so they can be reused.
     for port in device.ports:
-        Device.ip_address_pool.discard(port.ip)
+        store.release_ip(port.ip)
 
-    devices_db.remove(device)
+    store.devices.remove(device)
 
     # The client needs the peers' new interface lists and any links whose
     # interface indices shifted during the removal above.
     updated_devices = [serialize_device(peer) for peer, _ in freed_peer_ports.values()]
     updated_links = [
         serialize_link(l)
-        for l in links_db
+        for l in store.links
         if l.device_a in freed_peer_ports or l.device_b in freed_peer_ports
     ]
 
@@ -195,8 +195,8 @@ def delete_device(device_id: int):
 
 
 @app.get("/api/devices/{device_id}/available-ports")
-def get_available_ports(device_id: int):
-    device = find_device(device_id)
+def get_available_ports(device_id: int, store: TopologyStore = Depends(get_topology_store)):
+    device = store.find_device(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
@@ -210,9 +210,9 @@ def get_available_ports(device_id: int):
 
 
 @app.post("/api/links")
-def create_link(link_data: CreateLinkRequest):
-    device_a = find_device(link_data.device_a_id)
-    device_b = find_device(link_data.device_b_id)
+def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get_topology_store)):
+    device_a = store.find_device(link_data.device_a_id)
+    device_b = store.find_device(link_data.device_b_id)
 
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
@@ -227,8 +227,9 @@ def create_link(link_data: CreateLinkRequest):
         if port_b_num is None:
             port_b_num = device_b.allocate_link_port()
 
-        link = device_a.add_link(device_b, port_a_num, port_b_num, link_data.bandwidth, link_data.delay, link_data.unit)
-        links_db.append(link)
+        new_link_id = store.next_link_id()
+        link = device_a.add_link(new_link_id, device_b, port_a_num, port_b_num, link_data.bandwidth, link_data.delay, link_data.unit)
+        store.links.append(link)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -241,18 +242,18 @@ def create_link(link_data: CreateLinkRequest):
 
 
 @app.delete("/api/links/{link_id}")
-def delete_link(link_id: int):
-    link = next((l for l in links_db if l.id == link_id), None)
+def delete_link(link_id: int, store: TopologyStore = Depends(get_topology_store)):
+    link = next((l for l in store.links if l.id == link_id), None)
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
-    device_a = find_device(link.device_a)
-    device_b = find_device(link.device_b)
+    device_a = store.find_device(link.device_a)
+    device_b = store.find_device(link.device_b)
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
 
     port_a_num, port_b_num = link.port_a_num, link.port_b_num
-    links_db.remove(link)
+    store.links.remove(link)
     device_a.del_link(link_id, device_b)
 
     # Free/reindex interfaces same as delete_device's cascade (no-op for computers).
@@ -263,7 +264,7 @@ def delete_link(link_id: int):
     touched_ids = {device_a.id, device_b.id}
     updated_devices = [serialize_device(device_a), serialize_device(device_b)]
     updated_links = [
-        serialize_link(l) for l in links_db
+        serialize_link(l) for l in store.links
         if l.device_a in touched_ids or l.device_b in touched_ids
     ]
 
@@ -275,8 +276,8 @@ def delete_link(link_id: int):
 
 
 @app.put("/api/links/{link_id}")
-def update_link(link_id: int, link_data: LinkUpdateRequest):
-    link = next((l for l in links_db if l.id == link_id), None)
+def update_link(link_id: int, link_data: LinkUpdateRequest, store: TopologyStore = Depends(get_topology_store)):
+    link = next((l for l in store.links if l.id == link_id), None)
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
@@ -290,8 +291,8 @@ def update_link(link_id: int, link_data: LinkUpdateRequest):
     return serialize_link(link)
 
 @app.post("/api/route/{device_id}")
-def add_route(route: RouteCreateRequest, device_id: int):
-    device = find_device(device_id)
+def add_route(route: RouteCreateRequest, device_id: int, store: TopologyStore = Depends(get_topology_store)):
+    device = store.find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
 
     try:
@@ -301,14 +302,14 @@ def add_route(route: RouteCreateRequest, device_id: int):
         raise HTTPException(status_code=400, detail=str(e))
     
 @app.get("/api/route/{device_id}")
-def get_routes(device_id: int):
-    device = find_device(device_id)
+def get_routes(device_id: int, store: TopologyStore = Depends(get_topology_store)):
+    device = store.find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
     return {"routes": device.routing_table}
 
 @app.delete("/api/route/{device_id}")
-def delete_route(device_id: int, route_data: RouteDeleteRequest):
-    device = find_device(device_id)
+def delete_route(device_id: int, route_data: RouteDeleteRequest, store: TopologyStore = Depends(get_topology_store)):
+    device = store.find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
 
     try:
@@ -318,24 +319,24 @@ def delete_route(device_id: int, route_data: RouteDeleteRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/ping")
-def ping(ping_data: PingRequest):
-    source = find_device(ping_data.source_id)
-    target = find_device(ping_data.target_id)
+def ping(ping_data: PingRequest, store: TopologyStore = Depends(get_topology_store)):
+    source = store.find_device(ping_data.source_id)
+    target = store.find_device(ping_data.target_id)
 
     if not source:
         raise HTTPException(status_code=404, detail=f"Source device {ping_data.source_id} not found")
     if not target:
         raise HTTPException(status_code=404, detail=f"Target device {ping_data.target_id} not found")
 
-    result = build_ping_result(devices_db, links_db, ping_data.source_id, ping_data.target_id)
+    result = build_ping_result(store.devices, store.links, ping_data.source_id, ping_data.target_id)
     return result
 
 @app.get("/api/export")
-def export_topology_endpoint():
-    exported_data = export_topology(devices_db, links_db)
+def export_topology_endpoint(store: TopologyStore = Depends(get_topology_store)):
+    exported_data = export_topology(store)
     return exported_data
 
 @app.post("/api/import")
-def import_topology_endpoint(json_content: dict = Body(...)):
-    import_topology(json_content, devices_db, links_db)
+def import_topology_endpoint(json_content: dict = Body(...), store: TopologyStore = Depends(get_topology_store)):
+    import_topology(json_content, store)
     return {"message": "Topology imported successfully"}

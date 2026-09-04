@@ -3,12 +3,12 @@ from .device import Device
 class Router(Device):
     dynamic_ports = True
 
-    def __init__(self, name = None, port_number = 0):
-        super().__init__(name, port_number)
+    def __init__(self, id, name = None, port_number = 0):
+        super().__init__(id, name, port_number)
 
 if __name__ == "__main__":
-    r1 = Router(port_number = 5)
-    r2 = Router(name = "Kaszanka", port_number = 3)
+    r1 = Router(id = 1, port_number = 5)
+    r2 = Router(id = 2, name = "Kaszanka", port_number = 3)
 
     print("Initial Routers")
     print(r1.name, r1.port_number, [(p.ip, p.mask) for p in r1.ports])
