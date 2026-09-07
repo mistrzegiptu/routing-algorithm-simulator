@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from pydantic import BaseModel
+from typing import Optional
 
 @dataclass
 class SimConfig:
@@ -15,3 +17,11 @@ class Timer:
     node_id: int
     name: str
     payload: dict = field(default_factory=dict)
+
+class SimulationCommand(BaseModel):
+    action: str
+    algorithm: Optional[str] = None
+    speed: Optional[float] = None
+    seed: Optional[int] = None
+    source_id: Optional[int] = None
+    target_id: Optional[int] = None

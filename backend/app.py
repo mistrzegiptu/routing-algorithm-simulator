@@ -63,19 +63,6 @@ def healthcheck():
     }
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await websocket.send_text(f"Message received: {data}")
-
-    except WebSocketDisconnect:
-        print("Client disconnected")
-
-
 @app.get("/api/simulation/algorithms")
 def get_simulation_algorithms():
     """Registered algorithms — the UI dropdown is built from this, no hardcoding."""
@@ -85,7 +72,7 @@ def get_simulation_algorithms():
 @app.websocket("/ws/simulation")
 async def simulation_websocket(websocket: WebSocket, store: TopologyStore = Depends(get_topology_store)):
     # One connection = one playback session; protocol in docs/simulation-design.md §8.
-    session = SimulationSession(websocket, store.devices, store.links)
+    session = SimulationSession(websocket, store)
     await session.handle()
 
 
