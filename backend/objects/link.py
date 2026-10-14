@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 @dataclass
 class Link:
@@ -12,7 +13,13 @@ class Link:
     bandwidth: int
     delay: int
     unit: str
-    
+    weight: int = 1
+
+    _counter: ClassVar[int] = 1
+
+    def __post_init__(self):
+        Link._counter = max(Link._counter, self.id + 1)
+
     def set_device_a(self, device_a: int):
         self.device_a = device_a
 
@@ -33,3 +40,6 @@ class Link:
 
     def set_unit(self, unit: str):
         self.unit = unit
+
+    def set_weight(self, weight: int):
+        self.weight = weight

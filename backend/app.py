@@ -51,6 +51,7 @@ def serialize_link(link):
         "bandwidth": link.bandwidth,
         "delay": link.delay,
         "unit": link.unit,
+        "weight": link.weight,
     }
 
 
@@ -215,7 +216,16 @@ def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get
             port_b_num = device_b.allocate_link_port()
 
         new_link_id = store.next_link_id()
-        link = device_a.add_link(new_link_id, device_b, port_a_num, port_b_num, link_data.bandwidth, link_data.delay, link_data.unit)
+        link = device_a.add_link(
+            device_b,
+            port_a_num,
+            port_b_num,
+            link_data.bandwidth,
+            link_data.delay,
+            link_data.unit,
+            weight=link_data.weight,
+            link_id=new_link_id,
+        )
         store.links.append(link)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -274,6 +284,8 @@ def update_link(link_id: int, link_data: LinkUpdateRequest, store: TopologyStore
         link.set_delay(link_data.delay)
     if link_data.unit is not None:
         link.set_unit(link_data.unit)
+    if link_data.weight is not None:
+        link.set_weight(link_data.weight)
 
     return serialize_link(link)
 

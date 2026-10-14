@@ -7,6 +7,7 @@ export default function EditLinkModal({
     bandwidth: initialBandwidth,
     unit: initialUnit,
     delay: initialDelay,
+    weight: initialWeight,
     onSave,
     onDelete,
     onClose,
@@ -14,6 +15,7 @@ export default function EditLinkModal({
     const [bandwidth, setBandwidth] = useState(initialBandwidth ?? "");
     const [unit, setUnit] = useState(initialUnit ?? 'Mbps');
     const [delay, setDelay] = useState(initialDelay ?? "");
+    const [weight, setWeight] = useState(initialWeight ?? "");
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -21,6 +23,7 @@ export default function EditLinkModal({
             bandwidth: bandwidth ? parseInt(bandwidth, 10) : null,
             unit,
             delay: delay ? parseInt(delay, 10) : 10,
+            weight: weight ? parseInt(weight, 10) : 1,
         });
     };
 
@@ -67,6 +70,17 @@ export default function EditLinkModal({
                             placeholder="domyślnie 10"
                             value={delay}
                             onChange={(e) => setDelay(e.target.value)}
+                        />
+                    </label>
+
+                    <label className="modal-field">
+                        <span className="modal-label">Waga (losowanie trasy)</span>
+                        <input
+                            type="number"
+                            min="1"
+                            placeholder="domyślnie 1"
+                            value={weight}
+                            onChange={(e) => setWeight(e.target.value)}
                         />
                     </label>
 

@@ -21,6 +21,7 @@ class LinkModel(BaseModel):
     bandwidth: int
     delay: int
     unit: str
+    weight: int = 1
 
 class RoutingTableEntryModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -74,7 +75,17 @@ def import_topology(json_content, store):
         store.devices.append(new_device)
 
     for link in topology.links_db:
-        new_link = Link(id=link.id, device_a=link.device_a, device_b=link.device_b, port_a_num=link.port_a_num, port_b_num=link.port_b_num, bandwidth=link.bandwidth, delay=link.delay, unit=link.unit)
+        new_link = Link(
+            id=link.id,
+            device_a=link.device_a,
+            device_b=link.device_b,
+            port_a_num=link.port_a_num,
+            port_b_num=link.port_b_num,
+            bandwidth=link.bandwidth,
+            delay=link.delay,
+            unit=link.unit,
+            weight=link.weight,
+        )
 
         if new_link.id > max_link_id:
             max_link_id = new_link.id
