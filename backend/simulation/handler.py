@@ -66,7 +66,7 @@ class CommandHandler:
         if not engine:
             return await self.session.send_error("Symulacja nie jest uruchomiona")
 
-        target_id = engine.snapshot.first_ip(command.target_id)
+        target_ip = engine.snapshot.first_ip(command.target_id)
 
         if engine.snapshot.node(command.source_id) is None or engine.snapshot.node(command.target_id) is None:
             return await self.session.send_error(f"Nieznane urządzenie")
@@ -75,7 +75,7 @@ class CommandHandler:
             packet_id=engine._next_packet_id(),
             src_id=command.source_id,
             dst_id=command.target_id,
-            dst_ip=target_id,
+            dst_ip=target_ip,
             ttl=engine.config.ttl,
             time=self.session.clock.sim_now()
         )
