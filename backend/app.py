@@ -93,6 +93,23 @@ def create_device(device_data: DeviceCreateRequest, store: TopologyStore = Depen
 
     device_cls = DEVICE_CLASSES[device_data.type]
     new_device = device_cls(**kwargs)
+
+    existing_ips = {
+        port.ip
+        for device in store.devices
+        for port in device.ports
+    }
+
+    duplicate_ip = next(
+        (port.ip for port in new_device.ports if port.ip in existing_ips),
+        None
+    )
+
+    if duplicate_ip is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"IP address {duplicate_ip} is already in use",
+        )
     store.devices.append(new_device)
 
     return serialize_device(new_device)
@@ -104,14 +121,21 @@ def update_device(
     device_data: DeviceUpdateRequest = Body(...),
     store: TopologyStore = Depends(get_topology_store)
 ):
-    device = store.find_device(device_id)
+    device = store.find_device(device_id)  
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
 
-    if device_data.name is not None:
-        device.name = device_data.name
-
     if device_data.ports is not None:
+        proposed_ips = [port.ip for port in device.ports]
+        for i, port_data in enumerate(device_data.ports):
+            if i < len(proposed_ips):
+                proposed_ips[i] = port_data.ip
+
+        try:
+            store.validate_unique_ips({ device.id: proposed_ips })
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         for i, port_data in enumerate(device_data.ports):
             if i < len(device.ports):
                 try:
@@ -119,10 +143,13 @@ def update_device(
                     new_ip = port_data.ip if port_data.ip != current_port.ip else None
                     new_mask = port_data.mask if port_data.mask != current_port.mask else None
 
-                    if new_ip or new_mask:
+                    if new_ip is not None or new_mask is not None:
                         device.edit_port(current_port, new_ip=new_ip, new_mask=new_mask)
                 except ValueError as e:
                     raise HTTPException(status_code=400, detail=str(e))
+                
+    if device_data.name is not None:
+        device.name = device_data.name
 
     return serialize_device(device)
 

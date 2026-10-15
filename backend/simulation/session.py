@@ -17,6 +17,7 @@ class SimulationSession:
         
         self._task = None
         self._send_lock = asyncio.Lock()
+        self._wake_event = asyncio.Event()
 
     async def handle(self):
         await self.ws.accept()
@@ -52,6 +53,7 @@ class SimulationSession:
             self.clock.anchor(0.0)
 
             while self.clock.state in ("running", "paused"):
+                self._wake_event.clear()
                 if self.engine.limit_hit:
                     self.clock.state = "finished"
                     await self.send({"type": "finished", "reason": self.engine.limit_hit, **self.engine.summary()})
@@ -62,13 +64,19 @@ class SimulationSession:
                 
                 # Jeśli pauza lub brak zdarzeń - uśpij mocno, czeka na komendę
                 if self.clock.state == "paused" or t_next is None:
-                    await asyncio.sleep(0.1)
+                    await self._wake_event.wait()
                     continue
 
                 wall_wait = (t_next - self.clock.sim_now()) / self.clock.speed / 1000.0
                 
                 if wall_wait > 0:
-                    await asyncio.sleep(wall_wait)
+                    try:
+                        await asyncio.wait_for(
+                            self._wake_event.wait(),
+                            timeout=wall_wait
+                        )
+                    except TimeoutError:
+                        pass
                     continue
 
                 await self.send_events(self.engine.advance())

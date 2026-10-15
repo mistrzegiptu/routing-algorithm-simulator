@@ -15,20 +15,24 @@ class CommandHandler:
             await self._start(command)
         elif action == "pause":
             self.session.clock.pause()
+            self.session._wake_event.set()
             await self.session.send_status()
         elif action == "resume":
             self.session.clock.resume()
+            self.session._wake_event.set()
             await self.session.send_status()
         elif action == "step":
             await self._step()
         elif action == "set_speed":
             if command.speed is not None:
                 self.session.clock.set_speed(command.speed)
+                self.session._wake_event.set()
                 await self.session.send_status()
         elif action == "ping":
             await self._inject_ping(command)
         elif action == "stop":
             self.session.clock.state = "idle"
+            self.session._wake_event.set()
             if self.session.engine:
                 await self.session.send({"type": "finished", "reason": "stopped", **self.session.engine.summary()})
             await self.session.send_status()
@@ -81,6 +85,7 @@ class CommandHandler:
         )
 
         packet_id = engine.inject_packet(packet.src_id, self.session.clock.sim_now(), packet)
+        self.session._wake_event.set()
         await self.session.send({
             "type": "ping_sent", "packet_id": packet_id,
             "source_id": command.source_id, "target_id": command.target_id,

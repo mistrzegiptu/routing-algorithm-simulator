@@ -31,4 +31,19 @@ class TopologyStore:
         self.ip_pool.discard(ip)
 
     def is_ip_reserved(self, ip: str):
-        return ip not in self.ip_pool
+        return ip in self.ip_pool
+
+    def validate_unique_ips(self, replacements=None):
+        replacements = replacements or {}
+        used_ips = {}
+
+        for device in self.devices:
+            ips = replacements.get(
+                device.id,
+                [port.ip for port in device.ports]
+            )
+
+            for ip in ips:
+                if ip in used_ips:
+                    raise ValueError(f"IP address {ip} is already in use")
+                used_ips[ip] = device.name
