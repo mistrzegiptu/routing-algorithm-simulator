@@ -136,7 +136,6 @@ export function useTopology(canvasRef) {
                     ? { ...l, bandwidth: saved.bandwidth, delay: saved.delay, bandwidthUnit: saved.unit, weight: saved.weight }
                     : l))
             );
-            setSelectedLinkId(null);
         } catch (error) {
             console.error("Error saving link:", error);
             alert("Nie udało się zapisać połączenia.");
@@ -177,7 +176,6 @@ export function useTopology(canvasRef) {
             setDevices(prev =>
                 prev.map(d => (d.id === id ? { ...d, ...savedDevice } : d))
             );
-            setSelectedDeviceId(null);
         } catch (error) {
             alert(`Configuration save failed:\n\n${errorParse(error)}`);
         }         
