@@ -95,6 +95,7 @@ function App() {
   // Simulation-screen state: interactive ping picking on a running world.
   const simSidebarRef = useRef(null);
   const [simRunning, setSimRunning] = useState(false);
+  const [simPingArmed, setSimPingArmed] = useState(false);
   const [simPingSourceId, setSimPingSourceId] = useState(null);
   const [simState, setSimState] = useState('idle');
   const [simSpeed, setSimSpeed] = useState(0.1);
@@ -360,7 +361,7 @@ function App() {
 
   // --- Link editing (double-click) ---
   const requestConfigureLink = (id) => {
-    if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
+    if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL && !simPingArmed) {
       setSelectedLinkId(id);
     }
   };
@@ -415,7 +416,7 @@ function App() {
   }, []);
 
   const handleConfigureDevice = (id) => {
-    if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
+    if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL && !simPingArmed) {
       setSelectedDeviceId(id);
     }
   };
@@ -468,6 +469,7 @@ function App() {
       // Leaving Symuluj unmounts its sidebar, which closes the socket and
       // ends the simulation world on the backend.
       setSimRunning(false);
+      setSimPingArmed(false);
       setSimPingSourceId(null);
     }
     setAppMode(mode);
@@ -479,6 +481,7 @@ function App() {
     setSimState(state);
     setSimRunning(active);
     if (!active) {
+      setSimPingArmed(false);
       setSimPingSourceId(null);
       setSimSegments({});
     }
@@ -535,6 +538,11 @@ function App() {
 
   const handleSimDeviceClick = (id) => {
     if (!simRunning) return;
+    if (!simPingArmed) {
+      // Ping mode not armed: open device config panel instead.
+      handleConfigureDevice(id);
+      return;
+    }
     if (simPingSourceId === null) {
       setSimPingSourceId(id);
     } else if (id === simPingSourceId) {
@@ -577,6 +585,11 @@ function App() {
           mode={appMode}
           onSwitchMode={handleSwitchMode}
           pingSourceId={simPingSourceId}
+          simPingArmed={simPingArmed}
+          onToggleSimPing={() => {
+            setSimPingArmed(v => !v);
+            setSimPingSourceId(null);
+          }}
           onStatusChange={handleSimStatusChange}
           speed={simSpeed}
           onSpeedChange={setSimSpeed}
@@ -591,7 +604,7 @@ function App() {
           devices={devices}
           links={links}
           readOnly={appMode === AppMode.SIMULATE}
-          pingArmed={simRunning}
+          pingArmed={simPingArmed}
           addingLinkState={addingLinkState}
           sourceDeviceId={sourceDevice}
           showInterfaceIps={showInterfaceIps}
