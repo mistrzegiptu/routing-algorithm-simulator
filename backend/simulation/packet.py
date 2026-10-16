@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field, replace
+from .events import KIND_DATA
 
 
 @dataclass
@@ -28,3 +29,34 @@ class Packet:
         between the copies in flight.
         """
         return replace(self, meta=dict(self.meta))
+
+    @staticmethod
+    def create_ping_packet(
+        packet_id: str, 
+        src_id: int, 
+        dst_id: int, 
+        dst_ip: str, 
+        ttl: int, 
+        time: float, 
+        icmp_type: str = "request", 
+        request_id: str | None = None, 
+        request_created_t: float | None = None) -> Packet:
+
+        meta = {"icmp": icmp_type, "created_t": time}
+
+        if request_id is not None:
+            meta["request_id"] = request_id
+        if request_created_t is not None:
+            meta["request_created_t"] = request_created_t
+
+        return Packet(
+            id=packet_id,
+            kind=KIND_DATA,
+            protocol="icmp",
+            src_id=src_id,
+            dst_id=dst_id,
+            dst_ip=dst_ip,
+            ttl=ttl,
+            meta=meta
+        )
+

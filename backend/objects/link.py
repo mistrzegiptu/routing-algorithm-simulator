@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 @dataclass
 class Link:
-    _counter = 0
-
-    id: int = field(init=False)
+    id: int
 
     device_a: int
     device_b: int
@@ -16,9 +15,10 @@ class Link:
     unit: str
     weight: int = 1
 
+    _counter: ClassVar[int] = 1
+
     def __post_init__(self):
-        self.id = Link._counter
-        Link._counter += 1
+        Link._counter = max(Link._counter, self.id + 1)
 
     def set_device_a(self, device_a: int):
         self.device_a = device_a

@@ -1,5 +1,5 @@
 from .device import Device
 
 class Computer(Device):
-    def __init__(self, name = None, **kwargs):
-        super().__init__(name, 1)
+    def __init__(self, id, name = None, **kwargs):
+        super().__init__(id, name, 1)
