@@ -91,25 +91,10 @@ def create_device(device_data: DeviceCreateRequest, store: TopologyStore = Depen
         # Option A: routers start empty and grow on connect; computers get one NIC.
         kwargs['port_number'] = 0 if device_data.type == "router" else 1
 
+    kwargs['used_ips'] = store.used_ips()
+
     device_cls = DEVICE_CLASSES[device_data.type]
     new_device = device_cls(**kwargs)
-
-    existing_ips = {
-        port.ip
-        for device in store.devices
-        for port in device.ports
-    }
-
-    duplicate_ip = next(
-        (port.ip for port in new_device.ports if port.ip in existing_ips),
-        None
-    )
-
-    if duplicate_ip is not None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"IP address {duplicate_ip} is already in use",
-        )
     store.devices.append(new_device)
 
     return serialize_device(new_device)
@@ -238,9 +223,9 @@ def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get
         port_a_num = link_data.port_a_num
         port_b_num = link_data.port_b_num
         if port_a_num is None:
-            port_a_num = device_a.allocate_link_port()
+            port_a_num = device_a.allocate_link_port(store.used_ips())
         if port_b_num is None:
-            port_b_num = device_b.allocate_link_port()
+            port_b_num = device_b.allocate_link_port(store.used_ips())
 
         new_link_id = store.next_link_id()
         link = device_a.add_link(

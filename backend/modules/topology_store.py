@@ -30,6 +30,9 @@ class TopologyStore:
     def release_ip(self, ip: str):
         self.ip_pool.discard(ip)
 
+    def used_ips(self):
+        return {port.ip for device in self.devices for port in device.ports}
+
     def is_ip_reserved(self, ip: str):
         return ip in self.ip_pool
 
