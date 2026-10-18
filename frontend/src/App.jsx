@@ -538,11 +538,6 @@ function App() {
 
   const handleSimDeviceClick = (id) => {
     if (!simRunning) return;
-    if (!simPingArmed) {
-      // Ping mode not armed: open device config panel instead.
-      handleConfigureDevice(id);
-      return;
-    }
     if (simPingSourceId === null) {
       setSimPingSourceId(id);
     } else if (id === simPingSourceId) {
