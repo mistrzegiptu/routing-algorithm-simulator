@@ -49,7 +49,7 @@ function formatEvent(ev, nameOf) {
 }
 
 const SimulationSidebar = forwardRef(function SimulationSidebar(
-  { devices, mode, onSwitchMode, pingSourceId, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset },
+  { devices, mode, onSwitchMode, pingSourceId, simPingArmed, onToggleSimPing, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset },
   ref
 ) {
   const [algorithms, setAlgorithms] = useState([]);
@@ -151,7 +151,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   const running = status === "running" || status === "paused";
   const selectedAlgo = algorithms.find((a) => a.name === algorithm);
 
-  const pingHint = !running
+  const pingHint = !running || !simPingArmed
     ? null
     : pingSourceId === null || pingSourceId === undefined
       ? "Kliknij urządzenie źródłowe na kanwie"
@@ -229,13 +229,19 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
 
         <section className="sidebar__section">
           <h2 className="sidebar__heading">Ping</h2>
-          {pingHint ? (
-            <p className="sidebar__hint">{pingHint}</p>
-          ) : (
+          <button
+            className={`sidebar__link-btn sim-ping-toggle${simPingArmed ? " sim-ping-toggle--armed" : ""}`}
+            onClick={onToggleSimPing}
+            disabled={!running}
+            title={running ? (simPingArmed ? "Kliknij, aby wyłączyć tryb pingu" : "Kliknij, aby włączyć tryb pingu") : "Uruchom symulację, aby pingować"}
+          >
+            {simPingArmed ? "Dezaktywuj ping" : "Aktywuj ping"}
+          </button>
+          {pingHint && <p className="sidebar__hint">{pingHint}</p>}
+          {!running && (
             <p className="sim-note">
-              Uruchom symulację, a następnie kliknij dwa urządzenia na kanwie,
-              aby wysłać między nimi ping. Możesz pingować wielokrotnie —
-              pakiety wędrują równolegle.
+              Uruchom symulację, a następnie aktywuj tryb pingu,
+              aby wysłać pakiety między urządzeniami.
             </p>
           )}
         </section>

@@ -17,6 +17,7 @@ import { useBuildTools } from './hooks/useBuildTools.js';
 function App() {
   const [appMode, setAppMode] = useState(AppMode.BUILD);
   const [showInterfaceIps, setShowInterfaceIps] = useState(true);
+  const [simPingArmed, setSimPingArmed] = useState(false);
 
   const canvasRef = useRef(null);
 
@@ -45,7 +46,7 @@ function App() {
     handleSimEvent,
     handleSimReset,
     handleSimStatusChange,
-    handleSimDeviceClick,
+    handleSimDeviceClickHook,
     handleSimPaneClick,
     setSimPingSourceId
   } = useSimulationState(links)
@@ -106,9 +107,28 @@ function App() {
       // Leaving Symuluj unmounts its sidebar, which closes the socket and
       // ends the simulation world on the backend.
       setSimRunning(false);
+      setSimPingArmed(false);
       setSimPingSourceId(null);
     }
     setAppMode(mode);
+  };
+
+  const handleSimDeviceClick = (id) => {
+    if (!simRunning) return;
+    if (!simPingArmed) {
+      // Ping mode not armed: open device config panel instead.
+      handleConfigureDevice(id);
+      return;
+    }
+    handleSimDeviceClickHook(id);
+  };
+
+  const handleSimulationStatusChange = (state) => {
+    handleSimStatusChange(state);
+
+    if (state !== 'running' && state !== 'paused') {
+      setSimPingArmed(false);
+    }
   };
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
@@ -141,7 +161,12 @@ function App() {
           mode={appMode}
           onSwitchMode={handleSwitchMode}
           pingSourceId={simPingSourceId}
-          onStatusChange={handleSimStatusChange}
+          simPingArmed={simPingArmed}
+          onToggleSimPing={() => {
+            setSimPingArmed(v => !v);
+            setSimPingSourceId(null);
+          }}
+          onStatusChange={handleSimulationStatusChange}
           speed={simSpeed}
           onSpeedChange={setSimSpeed}
           onSimEvent={handleSimEvent}
@@ -155,7 +180,7 @@ function App() {
           devices={devices}
           links={links}
           readOnly={appMode === AppMode.SIMULATE}
-          pingArmed={simRunning}
+          pingArmed={simPingArmed}
           addingLinkState={addingLinkState}
           sourceDeviceId={sourceDevice}
           showInterfaceIps={showInterfaceIps}
