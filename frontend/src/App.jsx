@@ -46,7 +46,7 @@ function App() {
     handleSimEvent,
     handleSimReset,
     handleSimStatusChange,
-    handleSimDeviceClickHook,
+    handleSimDeviceClick,
     handleSimPaneClick,
     setSimPingSourceId
   } = useSimulationState(links)
@@ -113,14 +113,14 @@ function App() {
     setAppMode(mode);
   };
 
-  const handleSimDeviceClick = (id) => {
+  const handleSimDeviceSelection = (id) => {
     if (!simRunning) return;
     if (!simPingArmed) {
       // Ping mode not armed: open device config panel instead.
       handleConfigureDevice(id);
       return;
     }
-    handleSimDeviceClickHook(id);
+    handleSimDeviceClick(id);
   };
 
   const handleSimulationStatusChange = (state) => {
@@ -185,7 +185,7 @@ function App() {
           sourceDeviceId={sourceDevice}
           showInterfaceIps={showInterfaceIps}
           onUpdateDevicePosition={handleUpdateDevicePosition}
-          onSelectDevice={appMode === AppMode.SIMULATE ? handleSimDeviceClick : handleSelectDevice}
+          onSelectDevice={appMode === AppMode.SIMULATE ? handleSimDeviceSelection : handleSelectDevice}
           onConfigureDevice={handleConfigureDevice}
           onRequestDeleteDevice={requestDeleteDevice}
           onConfigureLink={requestConfigureLink}
