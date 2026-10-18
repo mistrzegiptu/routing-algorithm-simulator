@@ -93,7 +93,6 @@ export function useTopology(canvasRef) {
             );
         } catch(error) {
             console.error("Error deleting device:", error);
-            alert("Nie udało się usunąć urządzenia.");
             throw error;
         }
     }, []);
@@ -124,7 +123,7 @@ export function useTopology(canvasRef) {
             }]);
         } catch (error) {
             console.error("Error saving link:", error);
-            alert("Nie udało się dodać połączenia.");
+            throw error;
         }
     }, []);
 
@@ -139,6 +138,7 @@ export function useTopology(canvasRef) {
         } catch (error) {
             console.error("Error saving link:", error);
             alert("Nie udało się zapisać połączenia.");
+            throw error;
         }
     }, []);
 

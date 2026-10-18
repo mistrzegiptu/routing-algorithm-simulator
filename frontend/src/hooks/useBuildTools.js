@@ -165,11 +165,11 @@ export function useBuildTools(removeDevice, saveNewLink, saveDeviceConfig) {
         if (id === null) return;
     
         try {
-            const removedLinkIds = await removeDevice(id);
+            await removeDevice(id);
         
             // Clear any state that might still reference the removed device.
             if (selectedDeviceId === id) setSelectedDeviceId(null);
-            setHighlightedLinkIds(prev => prev.filter(lid => !removedLinkIds.includes(lid)));
+            setHighlightedLinkIds([]);
             if (sourceDevice === id) resetLinkSelection();
             if (pingSource === id) resetPing();
         } catch (error) {
@@ -200,8 +200,7 @@ export function useBuildTools(removeDevice, saveNewLink, saveDeviceConfig) {
     }, [addingLinkState, pingState]);
     
     const handleSaveConfig = useCallback(async (id, updatedData) => {
-        const saved = await saveDeviceConfig(id, updatedData);
-        if (saved) setSelectedDeviceId(null);
+        await saveDeviceConfig(id, updatedData)
     }, [saveDeviceConfig]);
 
     return {

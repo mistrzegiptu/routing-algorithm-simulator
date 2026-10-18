@@ -84,7 +84,7 @@ function App() {
   // --- Link deletion (fast, no confirmation — a link is cheap to recreate) ---
   const requestDeleteLink = useCallback(async (id) => {
     try {
-      removeLink(id);
+      await removeLink(id);
       setHighlightedLinkIds(prev => prev.filter(lid => lid !== id));
       setSelectedLinkId(prev => (prev === id ? null : prev));
     } catch (error) {
