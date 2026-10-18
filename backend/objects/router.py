@@ -3,8 +3,8 @@ from .device import Device
 class Router(Device):
     dynamic_ports = True
 
-    def __init__(self, id, name = None, port_number = 0):
-        super().__init__(id, name, port_number)
+    def __init__(self, id, name = None, port_number = 0, used_ips = ()):
+        super().__init__(id, name, port_number, used_ips)
 
 if __name__ == "__main__":
     r1 = Router(id = 1, port_number = 5)

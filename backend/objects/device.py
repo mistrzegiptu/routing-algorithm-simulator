@@ -24,23 +24,30 @@ class Device:
     # Routers grow new interfaces on demand; computers keep a single fixed NIC.
     dynamic_ports = False
 
-    def __init__(self, id,  name = None, port_number = 1):
+    def __init__(self, id,  name = None, port_number = 1, used_ips = ()):
         self.id = id
         class_name = self.__class__.__name__
         self.name = f"{class_name}_{self.id}" if name is None else name
         self.port_number = port_number
-        self.ports = [next(Device.port_gen) for _ in range(port_number)]
+        self.ports = [Device.next_free_port(used_ips) for _ in range(port_number)]
         self.links = []
         self.routing_table = []
 
-    def add_port(self, ip = None, mask = 24):
+    @staticmethod
+    def next_free_port(used_ips = ()):
+        port = next(Device.port_gen)
+        while port.ip in used_ips:
+            port = next(Device.port_gen)
+        return port
+
+    def add_port(self, ip = None, mask = 24, used_ips = ()):
         if not (0 <= mask <= 32):
             raise ValueError("Mask needs to be between 0 and 32")
-        
+
         if ip is not None: addr.IPv4Address(ip)
 
         if ip is None:
-            new_port = next(Device.port_gen)
+            new_port = Device.next_free_port(used_ips)
             if mask != 24:
                 new_port.set_mask(mask)
         else:
@@ -78,7 +85,7 @@ class Device:
                 return False
         return True
 
-    def allocate_link_port(self):
+    def allocate_link_port(self, used_ips = ()):
         """Return an interface index usable for a new link.
 
         Reuses the first free interface; if none is free and the device
@@ -89,7 +96,7 @@ class Device:
                 return port_num
 
         if self.dynamic_ports:
-            self.add_port()
+            self.add_port(used_ips=used_ips)
             return self.port_number - 1
 
         raise ValueError(f"Device '{self.name}' has no available interface")
