@@ -184,6 +184,10 @@ class SimulationEngine:
             ttl=self.config.ttl,
             meta={"icmp": "request", "created_t": at},
         )
+        # ping_id tags this specific user-initiated operation; all copies of
+        # this request (flooding) and the eventual reply share the same id so
+        # the frontend can count operations rather than raw packets.
+        packet.meta["ping_id"] = packet.id
         self._push(at, _Arrival(packet, source_id, None, None))
         return packet.id
 
@@ -231,6 +235,10 @@ class SimulationEngine:
             request_created = packet.meta.get("request_created_t")
             if request_created is not None:
                 payload["rtt"] = self.now - request_created
+        # Always surface ping_id so the frontend can track operations vs. packets.
+        ping_id = packet.meta.get("ping_id")
+        if ping_id is not None:
+            payload["ping_id"] = ping_id
 
         self._emit(
             PACKET_DELIVERED,
@@ -244,6 +252,14 @@ class SimulationEngine:
         # Real ICMP: the destination answers, and the reply has to find its
         # own way back through the same algorithm (a random walk wanders home).
         if icmp == "request":
+            reply_meta = {
+                "icmp": "reply",
+                "request_id": packet.id,
+                "created_t": self.now,
+                "request_created_t": packet.meta.get("created_t"),
+            }
+            if ping_id is not None:
+                reply_meta["ping_id"] = ping_id
             reply = Packet(
                 id=self._next_packet_id(),
                 kind=KIND_DATA,
@@ -252,12 +268,7 @@ class SimulationEngine:
                 dst_id=packet.src_id,
                 dst_ip=self.snapshot.first_ip(packet.src_id),
                 ttl=self.config.ttl,
-                meta={
-                    "icmp": "reply",
-                    "request_id": packet.id,
-                    "created_t": self.now,
-                    "request_created_t": packet.meta.get("created_t"),
-                },
+                meta=reply_meta,
             )
             self._push(self.now, _Arrival(reply, node.id, None, None))
 

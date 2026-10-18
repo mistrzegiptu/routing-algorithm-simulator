@@ -9,6 +9,7 @@ import { PingState } from "./models/PingState.js";
 import EditLinkModal from "./modals/EditLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
 import ConfirmDialog from "./modals/ConfirmDialog.jsx";
+import SimulationSummaryModal from "./modals/SimulationSummaryModal.jsx";
 
 import { saveLinkRoute, updateLink, deleteLink, updateDevice, pingDevice, deleteDevice, exportNetwork } from "./api/device_api.js";
 import "./App.css";
@@ -98,6 +99,8 @@ function App() {
   const [simState, setSimState] = useState('idle');
   const [simSpeed, setSimSpeed] = useState(0.1);
   const [simSegments, setSimSegments] = useState({});
+  // Holds the stats snapshot passed to SimulationSummaryModal after a run ends.
+  const [simSummaryData, setSimSummaryData] = useState(null);
 
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
@@ -484,6 +487,12 @@ function App() {
 
   const handleSimReset = useCallback(() => setSimSegments({}), []);
 
+  // Called by SimulationSidebar when a simulation ends; receives topology
+  // context, finished metadata, and up-to-date stats snapshot.
+  const handleSimFinished = useCallback((data) => {
+    setSimSummaryData(data);
+  }, []);
+
   const handleSimEvent = useCallback((ev) => {
     const id = ev.packet_id;
     if (!id) return;
@@ -581,6 +590,7 @@ function App() {
           onSpeedChange={setSimSpeed}
           onSimEvent={handleSimEvent}
           onSimReset={handleSimReset}
+          onSimFinished={handleSimFinished}
         />
       )}
 
@@ -614,6 +624,7 @@ function App() {
         />
       </main>
 
+      {/* Device details side panel (BUILD mode) */}
       {selectedDeviceId !== null && (
         <DeviceDetailsPanel
           device={selectedDevice}
@@ -660,6 +671,13 @@ function App() {
           danger
           onConfirm={confirmDeleteDevice}
           onCancel={cancelDeleteDevice}
+        />
+      )}
+
+      {simSummaryData && (
+        <SimulationSummaryModal
+          data={simSummaryData}
+          onClose={() => setSimSummaryData(null)}
         />
       )}
     </div>

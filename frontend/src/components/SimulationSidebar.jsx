@@ -1,6 +1,9 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ModeSwitch from "./ModeSwitch.jsx";
 import { fetchAlgorithms, SimulationSocket } from "../api/simulation_api.js";
+import { useSimStats } from "./useSimStats.js";
+import SimulationStatsPanel from "./SimulationStatsPanel.jsx";
 import "./Sidebar.css";
 
 const STATUS_LABELS = {
@@ -48,46 +51,22 @@ function formatEvent(ev, nameOf) {
   }
 }
 
-// ── Stats helpers ────────────────────────────────────────────────────────────
-
-const INITIAL_TTL = 64;
-
-function emptyStats() {
-  return {
-    packetsSent: 0,
-    packetsDelivered: 0,
-    packetsDropped: 0,
-    controlPackets: 0,
-    pingsRequested: 0,
-    pingsCompleted: 0,
-    rttValues: [],
-    maxHops: 0,
-    tableUpdates: 0,
-    lastTableUpdateTime: null,
-  };
-}
-
-function computeDerived(raw) {
-  const totalDecided = raw.packetsDelivered + raw.packetsDropped;
-  const packetLoss = totalDecided > 0
-    ? ((raw.packetsDropped / totalDecided) * 100)
-    : 0;
-
-  let avgRtt = 0, minRtt = 0, maxRtt = 0;
-  if (raw.rttValues.length > 0) {
-    const sum = raw.rttValues.reduce((a, b) => a + b, 0);
-    avgRtt = sum / raw.rttValues.length;
-    minRtt = Math.min(...raw.rttValues);
-    maxRtt = Math.max(...raw.rttValues);
-  }
-
-  return { packetLoss, avgRtt, minRtt, maxRtt };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SimulationSidebar = forwardRef(function SimulationSidebar(
-  { devices, links, mode, onSwitchMode, pingSourceId, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset },
+  {
+    devices,
+    links,
+    mode,
+    onSwitchMode,
+    pingSourceId,
+    onStatusChange,
+    speed,
+    onSpeedChange,
+    onSimEvent,
+    onSimReset,
+    onSimFinished,   // (summaryData) → called when simulation ends
+  },
   ref
 ) {
   const [algorithms, setAlgorithms] = useState([]);
@@ -98,12 +77,15 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   const [finished, setFinished] = useState(null);
   const [eventCount, setEventCount] = useState(0);
   const [logLines, setLogLines] = useState([]);
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
 
-  // Stats: raw counters live in a ref (avoids re-render per event); a snapshot
-  // is pushed into state on a 500 ms tick so the panel redraws in batches.
-  const statsRef = useRef(emptyStats());
-  const [statsSnap, setStatsSnap] = useState(emptyStats());
-  const statsTimerRef = useRef(null);
+  useEffect(() => {
+    setPortalTarget(document.querySelector(".app-root") || document.body);
+  }, []);
+
+  // Stats managed by the dedicated hook.
+  const { statsSnap, derived, accumulateStats, recordPingSent, resetStats, getLatestStats } = useSimStats(status);
 
   const socketRef = useRef(null);
   const logRef = useRef(null);
@@ -115,6 +97,18 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   onStatusChangeRef.current = onStatusChange;
   const onSimEventRef = useRef(onSimEvent);
   onSimEventRef.current = onSimEvent;
+  const onSimFinishedRef = useRef(onSimFinished);
+  onSimFinishedRef.current = onSimFinished;
+
+  // Keep derived props that summary modal needs accessible inside closures.
+  const linksRef = useRef(links);
+  linksRef.current = links;
+  const algorithmRef = useRef(algorithm);
+  algorithmRef.current = algorithm;
+  const algorithmsRef = useRef(algorithms);
+  algorithmsRef.current = algorithms;
+  const getLatestStatsRef = useRef(getLatestStats);
+  getLatestStatsRef.current = getLatestStats;
 
   useEffect(() => {
     fetchAlgorithms()
@@ -133,20 +127,6 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     if (el) el.scrollTop = el.scrollHeight;
   }, [logLines]);
 
-  // Stats refresh tick — runs while the simulation is active.
-  useEffect(() => {
-    if (status === "running" || status === "paused") {
-      statsTimerRef.current = setInterval(() => {
-        setStatsSnap({ ...statsRef.current });
-      }, 500);
-    } else {
-      // Push a final snapshot so finished/idle state shows the last values.
-      setStatsSnap({ ...statsRef.current });
-      clearInterval(statsTimerRef.current);
-    }
-    return () => clearInterval(statsTimerRef.current);
-  }, [status]);
-
   const nameOf = (id) =>
     devicesRef.current.find((d) => d.id === id)?.name ??
     (id === null || id === undefined ? "?" : `#${id}`);
@@ -155,40 +135,6 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     setStatus(state);
     onStatusChangeRef.current?.(state);
   };
-
-  // ── Stats accumulator (called for every sim_event) ──
-  const accumulateStats = useCallback((ev) => {
-    const s = statsRef.current;
-    const p = ev.payload || {};
-
-    switch (ev.type) {
-      case "packet_sent":
-        s.packetsSent++;
-        if (ev.kind === "control") s.controlPackets++;
-        break;
-      case "packet_delivered":
-        s.packetsDelivered++;
-        if (p.icmp === "request") s.pingsRequested++;
-        if (p.icmp === "reply" && typeof p.rtt === "number") {
-          s.pingsCompleted++;
-          s.rttValues.push(p.rtt);
-        }
-        if (ev.kind !== "control" && typeof p.ttl === "number") {
-          const hops = INITIAL_TTL - p.ttl;
-          if (hops > s.maxHops) s.maxHops = hops;
-        }
-        break;
-      case "packet_dropped":
-        s.packetsDropped++;
-        break;
-      case "table_update":
-        s.tableUpdates++;
-        s.lastTableUpdateTime = ev.t;
-        break;
-      default:
-        break;
-    }
-  }, []);
 
   const ensureSocket = async () => {
     if (socketRef.current?.isOpen) return socketRef.current;
@@ -201,8 +147,31 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
         if (line) setLogLines((prev) => [...prev.slice(-99), line]);
       },
       onStatus: (msg) => applyStatus(msg.state),
-      onFinished: (msg) => setFinished(msg),
+      onFinished: (msg) => {
+        setFinished(msg);
+        // Fire the summary callback — snap the current stats from the ref so
+        // it includes events processed right up to the finish message.
+        const currentLinks = linksRef.current;
+        const avgLinkDelay =
+          currentLinks.length > 0
+            ? currentLinks.reduce((sum, l) => sum + (l.delay || 0), 0) / currentLinks.length
+            : 0;
+        const algoName =
+          algorithmsRef.current.find((a) => a.name === algorithmRef.current)?.display_name ??
+          algorithmRef.current;
+        const latest = getLatestStatsRef.current();
+        onSimFinishedRef.current?.({
+          finished: msg,
+          algorithm: algoName,
+          deviceCount: devicesRef.current.length,
+          linkCount: currentLinks.length,
+          avgLinkDelay,
+          statsSnap: latest.statsSnap,
+          derived: latest.derived,
+        });
+      },
       onError: (message) => setErrorMsg(message),
+      onPingSent: () => recordPingSent(),
       onClose: () => applyStatus("idle"),
     });
     await socket.connect();
@@ -213,16 +182,16 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   // The canvas (via App) sends pings into the running world through this handle.
   useImperativeHandle(ref, () => ({
     sendPing: (sourceId, targetId) => socketRef.current?.ping(sourceId, targetId),
-  }), []);
+    getLatestStats: () => getLatestStats(),
+  }), [getLatestStats]);
+
 
   const handleStart = async () => {
     setErrorMsg(null);
     setFinished(null);
     setEventCount(0);
     setLogLines([]);
-    // Reset stats
-    statsRef.current = emptyStats();
-    setStatsSnap(emptyStats());
+    resetStats();
     onSimReset?.();
     try {
       const socket = await ensureSocket();
@@ -254,11 +223,10 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
       : `Źródło: ${nameOf(pingSourceId)} — kliknij cel pingu`;
 
   // ── Derived stats for rendering ──
-  const derived = computeDerived(statsSnap);
-  const avgLinkDelay = links.length > 0
-    ? (links.reduce((sum, l) => sum + (l.delay || 0), 0) / links.length)
-    : 0;
-  const showStats = status !== "idle";
+  const avgLinkDelay =
+    links.length > 0
+      ? links.reduce((sum, l) => sum + (l.delay || 0), 0) / links.length
+      : 0;
 
   return (
     <aside className="sidebar sidebar--sim">
@@ -378,118 +346,32 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
           </div>
         </section>
 
-        {/* ── Statistics panel ── */}
-        {showStats && (
-          <section className="sidebar__section sim-stats">
-            <h2 className="sidebar__heading">Statystyki</h2>
-
-            {/* Topology group */}
-            <div className="sim-stats__group">
-              <div className="sim-stats__group-title">Topologia</div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Algorytm</span>
-                <span className="sim-stats__value">
-                  {selectedAlgo?.display_name ?? algorithm}
-                </span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Węzły</span>
-                <span className="sim-stats__value">{devices.length}</span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Łącza</span>
-                <span className="sim-stats__value">{links.length}</span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Śr. opóźn. łącza</span>
-                <span className="sim-stats__value">
-                  {avgLinkDelay.toFixed(1)} <span className="sim-stats__unit">ms</span>
-                </span>
-              </div>
-            </div>
-
-            {/* Traffic group */}
-            <div className="sim-stats__group">
-              <div className="sim-stats__group-title">Ruch</div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Wysłane</span>
-                <span className="sim-stats__value">{statsSnap.packetsSent}</span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Dostarczone</span>
-                <span className="sim-stats__value sim-stats__value--good">
-                  {statsSnap.packetsDelivered}
-                </span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Utracone</span>
-                <span className={`sim-stats__value ${statsSnap.packetsDropped > 0 ? "sim-stats__value--bad" : ""}`}>
-                  {statsSnap.packetsDropped}
-                </span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Packet loss</span>
-                <span className={`sim-stats__value ${derived.packetLoss > 0 ? "sim-stats__value--bad" : ""}`}>
-                  {derived.packetLoss.toFixed(1)} <span className="sim-stats__unit">%</span>
-                </span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Pingi wysłane</span>
-                <span className="sim-stats__value">{statsSnap.pingsRequested}</span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Pingi ukończone</span>
-                <span className="sim-stats__value">{statsSnap.pingsCompleted}</span>
-              </div>
-              {statsSnap.rttValues.length > 0 && (
-                <>
-                  <div className="sim-stats__row sim-stats__row--highlight">
-                    <span className="sim-stats__label">Średni RTT</span>
-                    <span className="sim-stats__value sim-stats__value--accent">
-                      {derived.avgRtt.toFixed(1)} <span className="sim-stats__unit">ms</span>
-                    </span>
-                  </div>
-                  <div className="sim-stats__row">
-                    <span className="sim-stats__label">Min / Max RTT</span>
-                    <span className="sim-stats__value">
-                      {derived.minRtt.toFixed(1)} / {derived.maxRtt.toFixed(1)} <span className="sim-stats__unit">ms</span>
-                    </span>
-                  </div>
-                </>
-              )}
-              {statsSnap.maxHops > 0 && (
-                <div className="sim-stats__row">
-                  <span className="sim-stats__label">Najdł. ścieżka</span>
-                  <span className="sim-stats__value">
-                    {statsSnap.maxHops} <span className="sim-stats__unit">hops</span>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Routing group */}
-            <div className="sim-stats__group">
-              <div className="sim-stats__group-title">Routing</div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Aktualizacje tablic</span>
-                <span className="sim-stats__value">{statsSnap.tableUpdates}</span>
-              </div>
-              <div className="sim-stats__row">
-                <span className="sim-stats__label">Pakiety kontrolne</span>
-                <span className="sim-stats__value">{statsSnap.controlPackets}</span>
-              </div>
-              {statsSnap.lastTableUpdateTime !== null && (
-                <div className="sim-stats__row">
-                  <span className="sim-stats__label">Czas konwergencji ≈</span>
-                  <span className="sim-stats__value">
-                    {Math.round(statsSnap.lastTableUpdateTime)} <span className="sim-stats__unit">ms</span>
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+        {/* ── Statistics side panel toggle button ── */}
+        <section className="sidebar__section">
+          <button
+            className={`sidebar__link-btn ${showStatsPanel ? "is-active" : ""}`}
+            onClick={() => setShowStatsPanel((v) => !v)}
+            type="button"
+          >
+            {showStatsPanel ? "Ukryj statystyki" : "Statystyki"}
+          </button>
+        </section>
       </div>
+
+      {showStatsPanel &&
+        portalTarget &&
+        createPortal(
+          <SimulationStatsPanel
+            onClose={() => setShowStatsPanel(false)}
+            statsSnap={statsSnap}
+            derived={derived}
+            algorithm={selectedAlgo?.display_name ?? algorithm}
+            deviceCount={devices.length}
+            linkCount={links.length}
+            avgLinkDelay={avgLinkDelay}
+          />,
+          portalTarget
+        )}
     </aside>
   );
 });
