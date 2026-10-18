@@ -502,6 +502,7 @@ function App() {
         ...prev,
         [key]: {
           key,
+          link_id: ev.link_id,
           from_id: ev.from_id,
           to_id: ev.to_id,
           t_sent: ev.t,
@@ -553,6 +554,13 @@ function App() {
     }
   };
 
+  const handleSimLinkDisconnected = useCallback((linkId) => {
+    setSimSegments(prev => 
+      Object.fromEntries(
+      Object.entries(prev).filter(([, segment]) => segment.link_id !== linkId)
+    ))
+  }, []);
+
   const handleSimPaneClick = () => setSimPingSourceId(null);
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
@@ -595,6 +603,7 @@ function App() {
           onSpeedChange={setSimSpeed}
           onSimEvent={handleSimEvent}
           onSimReset={handleSimReset}
+          onLinkDisconnected={handleSimLinkDisconnected}
         />
       )}
 

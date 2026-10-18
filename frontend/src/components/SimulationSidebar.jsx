@@ -49,7 +49,7 @@ function formatEvent(ev, nameOf) {
 }
 
 const SimulationSidebar = forwardRef(function SimulationSidebar(
-  { devices, mode, onSwitchMode, pingSourceId, simPingArmed, onToggleSimPing, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset },
+  { devices, mode, onSwitchMode, pingSourceId, simPingArmed, onToggleSimPing, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset, onLinkDisconnected },
   ref
 ) {
   const [algorithms, setAlgorithms] = useState([]);
@@ -71,6 +71,8 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   onStatusChangeRef.current = onStatusChange;
   const onSimEventRef = useRef(onSimEvent);
   onSimEventRef.current = onSimEvent;
+  const onLinkDisconnectedRef = useRef(onLinkDisconnected);
+  onLinkDisconnectedRef.current = onLinkDisconnected;
 
   useEffect(() => {
     fetchAlgorithms()
@@ -111,6 +113,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
       onFinished: (msg) => setFinished(msg),
       onError: (message) => setErrorMsg(message),
       onClose: () => applyStatus("idle"),
+      onLinkDisconnected: (linkId) => onLinkDisconnectedRef.current?.(linkId),
     });
     await socket.connect();
     socketRef.current = socket;

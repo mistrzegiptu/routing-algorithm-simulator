@@ -293,3 +293,12 @@ class SimulationEngine:
     def _next_packet_id(self):
         self._packet_seq += 1
         return f"p{self._packet_seq}"
+
+    def disconnect_link(self, link_id):
+        if not self.snapshot.disconnect_link(link_id):
+            return
+
+        self._queue = [element for element in self._queue if not (
+            isinstance(element[-1], _Arrival) and element[-1].link_id == link_id
+        )]
+        heapq.heapify(self._queue)

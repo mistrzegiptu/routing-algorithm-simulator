@@ -103,3 +103,13 @@ class SimulationSession:
 
     async def send_error(self, message):
         await self.send({"type": "error", "message": message})
+
+    async def disconnect_link(self, link_id):
+        if self.engine is not None:
+            self.engine.disconnect_link(link_id)
+
+        self._wake_event.set()
+        await self.send({
+            "type": "link_disconnected",
+            "link_id": link_id,
+        })

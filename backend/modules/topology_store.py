@@ -5,6 +5,7 @@ class TopologyStore:
         self.ip_pool = set()
         self._device_seq = 1
         self._link_seq = 1
+        self.simulation_sessions = set()
 
     def next_device_id(self):
         _id = self._device_seq
