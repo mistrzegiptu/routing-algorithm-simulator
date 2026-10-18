@@ -4,4 +4,4 @@ Importing a module here is what makes its @register decorator run — adding a
 new algorithm to the app is: create the module, subclass RoutingAlgorithm,
 add one import line below.
 """
-from . import random_walk, hot_potato, flooding, rpf, backward_learning, weighted_random_walk
+from . import random_walk, hot_potato, flooding, rpf, backward_learning, weighted_random_walk, rip

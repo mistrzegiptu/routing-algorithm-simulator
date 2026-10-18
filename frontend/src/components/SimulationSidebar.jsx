@@ -16,13 +16,31 @@ const FINISH_REASONS = {
   max_events: "limit zdarzeń bezpieczeństwa",
 };
 
+const SPEED_MIN_EXP = -2;
+const SPEED_MAX_EXP = 1;
+
+function sliderToSpeed(value) {
+  const speed = 10 ** value;
+  return speed >= 1 ? Math.round(speed * 10) / 10 : Math.round(speed * 100) / 100;
+}
+
+function formatSimTime(t) {
+  return t < 1000 ? `${Math.round(t)} ms` : `${(t / 1000).toFixed(2).replace(".", ",")} s`;
+}
+
+function defaultOptions(algo) {
+  return Object.fromEntries((algo?.options ?? []).map((option) => [option.key, option.default]));
+}
+
 // Compact Polish one-liners for the mini-log; packet_recv is skipped as noise.
 function formatEvent(ev, nameOf) {
-  const t = `${Math.round(ev.t)} ms`;
+  const t = formatSimTime(ev.t);
   const p = ev.payload || {};
   switch (ev.type) {
     case "packet_sent":
-      return { text: `[${t}] ${nameOf(ev.from_id)} → ${nameOf(ev.to_id)} (${ev.protocol})` };
+      return {
+        text: `[${t}] ${nameOf(ev.from_id)} → ${nameOf(ev.to_id)} (${ev.protocol}${p.summary ? ` · ${p.summary}` : ""})`,
+      };
     case "packet_delivered":
       if (p.icmp === "reply") {
         return {
@@ -54,6 +72,8 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
 ) {
   const [algorithms, setAlgorithms] = useState([]);
   const [algorithm, setAlgorithm] = useState("");
+  const [optionValues, setOptionValues] = useState({});
+  const [skipIdle, setSkipIdle] = useState(true);
 
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState(null);
@@ -122,6 +142,13 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     sendPing: (sourceId, targetId) => socketRef.current?.ping(sourceId, targetId),
   }), []);
 
+  const selectedAlgo = algorithms.find((a) => a.name === algorithm);
+  const currentOptions = { ...defaultOptions(selectedAlgo), ...(optionValues[algorithm] ?? {}) };
+
+  const handleOptionChange = (key, value) => {
+    setOptionValues((prev) => ({ ...prev, [algorithm]: { ...(prev[algorithm] ?? {}), [key]: value } }));
+  };
+
   const handleStart = async () => {
     setErrorMsg(null);
     setFinished(null);
@@ -130,7 +157,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     onSimReset?.();
     try {
       const socket = await ensureSocket();
-      socket.start({ algorithm, speed });
+      socket.start({ algorithm, speed, options: currentOptions, skipIdle });
     } catch (err) {
       setErrorMsg(err.message);
     }
@@ -148,8 +175,12 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     if (socketRef.current?.isOpen) socketRef.current.setSpeed(value);
   };
 
+  const handleSkipIdleChange = (value) => {
+    setSkipIdle(value);
+    if (socketRef.current?.isOpen) socketRef.current.setSkipIdle(value);
+  };
+
   const running = status === "running" || status === "paused";
-  const selectedAlgo = algorithms.find((a) => a.name === algorithm);
 
   const pingHint = !running
     ? null
@@ -186,6 +217,35 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
           {selectedAlgo?.description && (
             <p className="sim-note">{selectedAlgo.description}</p>
           )}
+          {selectedAlgo?.options?.length > 0 && (
+            <div className="sim-options">
+              {selectedAlgo.options.map((option) => option.type === "bool" ? (
+                <label key={option.key} className="sim-option sim-option--toggle" title={option.description}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(currentOptions[option.key])}
+                    disabled={running}
+                    onChange={(e) => handleOptionChange(option.key, e.target.checked)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ) : (
+                <label key={option.key} className="sim-option" title={option.description}>
+                  <span className="sim-field-label">{option.label}</span>
+                  <select
+                    className="sim-select"
+                    value={currentOptions[option.key]}
+                    disabled={running}
+                    onChange={(e) => handleOptionChange(option.key, e.target.value)}
+                  >
+                    {option.choices.map((choice) => (
+                      <option key={choice.value} value={choice.value}>{choice.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="sidebar__section">
@@ -197,13 +257,24 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
             </div>
             <input
               type="range"
-              min="0.01"
-              max="1"
+              min={SPEED_MIN_EXP}
+              max={SPEED_MAX_EXP}
               step="0.01"
-              value={speed}
-              onChange={(e) => handleSpeedChange(Number(e.target.value))}
+              value={Math.log10(speed)}
+              onChange={(e) => handleSpeedChange(sliderToSpeed(Number(e.target.value)))}
             />
           </div>
+          <label
+            className="sim-option sim-option--toggle"
+            title="Gdy żaden pakiet nie jest w drodze, czas symulacji przeskakuje do następnego zdarzenia, np. kolejnej aktualizacji RIP."
+          >
+            <input
+              type="checkbox"
+              checked={skipIdle}
+              onChange={(e) => handleSkipIdleChange(e.target.checked)}
+            />
+            <span>Przewijaj czas bez ruchu</span>
+          </label>
           {!running ? (
             <button
               className="sidebar__link-btn"
@@ -250,7 +321,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
           {finished && (
             <p className="sidebar__hint">
               Symulacja {FINISH_REASONS[finished.reason] ?? finished.reason} po{" "}
-              {Math.round(finished.sim_time)} ms czasu symulacji
+              {formatSimTime(finished.sim_time)} czasu symulacji
             </p>
           )}
           <div className="sim-log" ref={logRef}>
@@ -271,6 +342,10 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
             <span className="sim-legend__item">
               <span className="sim-legend__dot" style={{ background: "#34d399" }} />
               Odpowiedź
+            </span>
+            <span className="sim-legend__item">
+              <span className="sim-legend__dot" style={{ background: "#f0a23b" }} />
+              Pakiet kontrolny
             </span>
           </div>
         </section>

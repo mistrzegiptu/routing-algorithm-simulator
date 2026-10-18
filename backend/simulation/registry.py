@@ -23,9 +23,9 @@ def register(cls):
     return cls
 
 
-def get_algorithm(name):
+def get_algorithm(name, options=None):
     """Instantiate a registered algorithm; raises KeyError for unknown names."""
-    return ALGORITHMS[name]()
+    return ALGORITHMS[name](options)
 
 
 def list_algorithms():

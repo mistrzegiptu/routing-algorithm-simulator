@@ -60,8 +60,8 @@ export class SimulationSocket {
     }
 
     // The world starts empty of traffic — pings are injected later via ping().
-    start({ algorithm, speed, seed }) {
-        this._send({ action: "start", algorithm, speed, seed });
+    start({ algorithm, speed, seed, options, skipIdle }) {
+        this._send({ action: "start", algorithm, speed, seed, options, skip_idle: skipIdle });
     }
 
     ping(sourceId, targetId) {
@@ -73,6 +73,7 @@ export class SimulationSocket {
     step() { this._send({ action: "step" }); }
     stop() { this._send({ action: "stop" }); }
     setSpeed(speed) { this._send({ action: "set_speed", speed }); }
+    setSkipIdle(skipIdle) { this._send({ action: "set_skip_idle", skip_idle: skipIdle }); }
 
     close() {
         this.ws?.close();

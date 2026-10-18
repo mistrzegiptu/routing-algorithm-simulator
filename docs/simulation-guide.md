@@ -78,6 +78,14 @@ Zamrożona kopia topologii. Najważniejsze dla Ciebie:
 Trzy haki + metadane. Implementujesz `on_packet`; `on_init`/`on_timer` tylko gdy
 masz control plane.
 
+Opcje ustawiane w UI przed startem: lista `option_specs` w klasie. Każda opcja to
+dict z `key`, `label`, `type` (`bool` albo `choice` z listą `choices`), `default`
+i `description` (podpowiedź w UI). Sidebar rysuje je sam z
+`GET /api/simulation/algorithms`, a w algorytmie czytasz gotowe, zwalidowane
+wartości z `self.options[...]` (zła albo brakująca wartość = `default`).
+Przykład: `algorithms/rip.py`. Algorytm, który legalnie działa bez końca
+(timery okresowe), może podnieść bezpiecznik zdarzeń polem `max_events`.
+
 ### `simulation/engine.py` — `SimulationEngine`, `SimContext`, `SimConfig`, `Timer`
 Silnik jest **pasywny**: `start()` (odpala `on_init`), `peek_time()`, `advance()`
 (jedno zdarzenie), `inject_ping()`. Nie ma własnego zegara — dzięki temu w testach
@@ -102,7 +110,7 @@ i w ogóle nie rusza pakietów **kontrolnych** — one zawsze trafiają do `on_p
 | `ctx.net` | `NetworkSnapshot` |
 | `ctx.rng` | `random.Random(seed)` — **jedyne** dozwolone źródło losowości |
 | `ctx.forward(node, packet, adj)` | wyślij pakiet łączem `adj`; dojdzie za `adj.delay` ms |
-| `ctx.send_control(node, proto, payload, adj)` | wyślij pakiet kontrolny do sąsiada (payload = dowolny dict) |
+| `ctx.send_control(node, proto, payload, adj, summary=None)` | wyślij pakiet kontrolny do sąsiada (payload = dowolny dict); `summary` to krótki opis widoczny w logu UI, np. „Response: 4 trasy” |
 | `ctx.drop(node, packet, reason)` | poddaj się (emituje `packet_dropped`) |
 | `ctx.schedule_timer(node, delay, name, payload)` | za `delay` ms silnik wywoła `on_timer` tego węzła |
 | `ctx.state(node)` | prywatny słownik węzła — Twoja pamięć (tablice, liczniki, LSDB…) |
@@ -119,6 +127,12 @@ Warstwa transportowa (nie dotykasz jej pisząc algorytm): trzyma zegar
 sim↔wall (`sim_now = kotwica + upłynęło·speed`), kolejkę komend klienta
 (start/ping/pauza/krok/prędkość/stop) i wysyła zdarzenia po WebSockecie we
 właściwym tempie. Protokół: design doc §8.
+
+Przewijanie czasu bez ruchu (`skip_idle`, domyślnie włączone, checkbox w UI):
+gdy żaden pakiet nie jest w drodze, a następne zdarzenie w kolejce to timer,
+sesja czeka najwyżej 0,25 s i przeskakuje zegar do tego zdarzenia. Dzięki temu
+timery z RFC (np. 30 s w RIP) nie wymagają skalowania, a pakiety nadal lecą w
+zwykłym tempie.
 
 ### Frontend
 - `api/simulation_api.js` — `fetchAlgorithms()` + `SimulationSocket`
@@ -288,6 +302,10 @@ class DistanceVector(RoutingAlgorithm):
   poprawny, ciekawy wynik do pokazania (i świetny materiał do pracy).
 - Klasyczne problemy DV (count-to-infinity, split horizon) zostawiłem Tobie —
   to wdzięczny rozdział pracy inżynierskiej.
+
+Pełna wersja tego szkieletu to `algorithms/rip.py` (RIPv2 wg RFC 2453: timery
+30/180/120 s, aktualizacje wyzwalane, split horizon/poisoned reverse i
+hold-down jako opcje), z testami w `tests/test_rip.py`.
 
 ---
 
