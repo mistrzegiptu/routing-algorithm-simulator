@@ -515,21 +515,6 @@ function App() {
         delete next[key];
         return next;
       });
-    } else if (ev.type === 'packet_delivered' || ev.type === 'packet_dropped') {
-      // No link_id on these events, so match the in-flight copy that was headed
-      // to this node without touching sibling copies still flying elsewhere.
-      setSimSegments(prev => {
-        let changed = false;
-        const next = {};
-        for (const [k, v] of Object.entries(prev)) {
-          if (k.startsWith(`${id}:`) && v.to_id === ev.node_id) {
-            changed = true;
-            continue;
-          }
-          next[k] = v;
-        }
-        return changed ? next : prev;
-      });
     }
   }, [links]);
 

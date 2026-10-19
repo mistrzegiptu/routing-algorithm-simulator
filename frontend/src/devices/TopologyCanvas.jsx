@@ -83,21 +83,25 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
 
   // Devices are the source of truth; rebuild nodes when they (or link/ping state) change.
   useEffect(() => {
-    setNodes(devices.map((d) => ({
-      id: String(d.id),
-      type: 'device',
-      position: { x: d.x, y: d.y },
-      data: {
-        device: d,
-        // Clickable affordance (pointer + hover ring): link/ping picking on the
-        // Build screen, or a running simulation waiting for ping clicks.
-        linking: isInteractive || (readOnly && pingArmed),
-        isSource: d.id === sourceDeviceId || d.id === pingSourceId,
-        showIp: showInterfaceIps,
-        // No delete affordance on the read-only (simulation) canvas.
-        onRequestDelete: readOnly ? undefined : onRequestDeleteDevice,
-      },
-    })));
+    setNodes((prev) => {
+      const prevById = new Map(prev.map((n) => [n.id, n]));
+      return devices.map((d) => ({
+        ...prevById.get(String(d.id)),
+        id: String(d.id),
+        type: 'device',
+        position: { x: d.x, y: d.y },
+        data: {
+          device: d,
+          // Clickable affordance (pointer + hover ring): link/ping picking on the
+          // Build screen, or a running simulation waiting for ping clicks.
+          linking: isInteractive || (readOnly && pingArmed),
+          isSource: d.id === sourceDeviceId || d.id === pingSourceId,
+          showIp: showInterfaceIps,
+          // No delete affordance on the read-only (simulation) canvas.
+          onRequestDelete: readOnly ? undefined : onRequestDeleteDevice,
+        },
+      }));
+    });
   }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, readOnly, pingArmed, onRequestDeleteDevice, setNodes]);
 
   const edges = useMemo(() => links.map((link) => {
