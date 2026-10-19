@@ -156,6 +156,8 @@ class SimulationEngine:
 
     def inject_packet(self, source_id, curr_time, packet):
         """Schedule a packet source→target at sim time ``at_time``."""
+        if packet.meta.get("icmp") == "request":
+            packet.meta.setdefault("ping_id", packet.id)
         self._push(curr_time, _Arrival(packet, source_id, None, None))
         return packet.id
 
@@ -203,6 +205,10 @@ class SimulationEngine:
             request_created = packet.meta.get("request_created_t")
             if request_created is not None:
                 payload["rtt"] = self.now - request_created
+        # Always surface ping_id so the frontend can track operations vs. packets.
+        ping_id = packet.meta.get("ping_id")
+        if ping_id is not None:
+            payload["ping_id"] = ping_id
 
         self._emit(
             PACKET_DELIVERED,
@@ -227,7 +233,10 @@ class SimulationEngine:
                 request_id=packet.id,
                 request_created_t=packet.meta.get("created_t")
             )
+            if ping_id is not None:
+                reply.meta["ping_id"] = ping_id
             self._push(self.now, _Arrival(reply, node.id, None, None))
+
 
     def _is_delivered(self, node, packet):
         if packet.dst_id is not None and node.id == packet.dst_id:
