@@ -104,6 +104,8 @@ def test_ping_request_and_reply_on_line():
     assert reply.node_id == pc1.id and reply.t == 30.0
     assert reply.payload["rtt"] == 30.0
     assert reply.payload["request_id"] == request.packet_id
+    assert request.payload.get("ping_id") == request.packet_id
+    assert reply.payload.get("ping_id") == request.packet_id
 
 
 def test_sent_recv_pairs_carry_link_delay():
@@ -220,3 +222,17 @@ def test_random_walk_can_backtrack():
         )
 
     assert any(has_backtrack(seed) for seed in range(50))
+
+
+def test_flooding_propagates_ping_id_across_all_copies():
+    devices, links = diamond_topology()
+    pc1, pc2 = devices[0], devices[-1]
+    engine = make_engine(devices, links, get_algorithm("flooding"))
+    ping_id = engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+    events = drain(engine)
+
+    delivered = by_type(events, "packet_delivered")
+    assert len(delivered) > 0
+    for d in delivered:
+        assert d.payload.get("ping_id") == ping_id
+
