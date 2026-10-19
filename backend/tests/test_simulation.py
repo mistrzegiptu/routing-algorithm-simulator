@@ -228,7 +228,7 @@ def test_flooding_propagates_ping_id_across_all_copies():
     devices, links = diamond_topology()
     pc1, pc2 = devices[0], devices[-1]
     engine = make_engine(devices, links, get_algorithm("flooding"))
-    ping_id = engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+    ping_id = inject_ping(engine, pc1.id, pc2.id, at_time=0.0)
     events = drain(engine)
 
     delivered = by_type(events, "packet_delivered")

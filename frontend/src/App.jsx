@@ -74,7 +74,6 @@ function App() {
     pingHandler,
     handleSelectDevice,
     handleConfigureDevice,
-    handleSaveConfig,
     handleCloseConfig,
     requestConfigureLink,
     handleCloseLinkConfig,
@@ -83,7 +82,7 @@ function App() {
     requestDeleteDevice,
     cancelDeleteDevice,
     confirmDeleteDevice
-  } = useBuildTools(removeDevice, saveNewLink, saveDeviceConfig)
+  } = useBuildTools(removeDevice, saveNewLink, simPingArmed)
 
   // --- Link deletion (fast, no confirmation — a link is cheap to recreate) ---
   const requestDeleteLink = useCallback(async (id) => {
@@ -220,7 +219,7 @@ function App() {
         <DeviceDetailsPanel
           device={selectedDevice}
           onClose={handleCloseConfig}
-          onSave={handleSaveConfig}
+          onSave={saveDeviceConfig}
           onDelete={requestDeleteDevice}
         />
       )}
@@ -234,8 +233,12 @@ function App() {
           delay={selectedLink.delay}
           weight={selectedLink.weight}
           onSave={async (updatedData) => {
-            await handleSaveLinkConfig(selectedLink.id, updatedData);
-            handleCloseLinkConfig();
+            try {
+              await handleSaveLinkConfig(selectedLink.id, updatedData);
+              handleCloseLinkConfig();
+            } catch (error) {
+              console.error("Error saving link:", error);
+            }
           }}
           onDelete={() => requestDeleteLink(selectedLink.id)}
           onClose={handleCloseLinkConfig}
