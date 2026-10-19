@@ -92,7 +92,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         // Clickable affordance (pointer + hover ring): link/ping picking on the
         // Build screen, or a running simulation waiting for ping clicks.
         linking: isInteractive || (readOnly && pingArmed),
-        isSource: d.id === sourceDeviceId || d.id === pingSourceId,
+        isSource: d.id === sourceDeviceId || (pingArmed && d.id === pingSourceId),
         showIp: showInterfaceIps,
         // No delete affordance on the read-only (simulation) canvas.
         onRequestDelete: readOnly ? undefined : onRequestDeleteDevice,
@@ -115,31 +115,37 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         showIps: showInterfaceIps,
         highlighted: isHighlighted,
         dimmed: highlightedLinkIds.length > 0 && !isHighlighted,
-        hovered: !readOnly && !isInteractive && link.id === hoveredEdgeId,
+        hovered: !(readOnly && pingArmed) && !isInteractive && link.id === hoveredEdgeId,
         onRequestDelete: readOnly ? undefined : onRequestDeleteLink,
       },
     };
   }), [links, devices, showInterfaceIps, highlightedLinkIds, isInteractive, hoveredEdgeId, readOnly, onRequestDeleteLink]);
 
   const handleNodeClick = useCallback((_, node) => {
-    // Read-only (simulation) canvas: single click always goes to the app —
-    // that's how the user picks ping source and target on a running world.
-    if (readOnly || isInteractive) onSelectDevice(Number(node.id));
-  }, [readOnly, isInteractive, onSelectDevice]);
+    if (readOnly) {
+      if (pingArmed) {
+        // Ping mode armed: let the app pick source/target.
+        onSelectDevice(Number(node.id));
+      } else {
+        // Ping mode disarmed: open the device config panel.
+        onConfigureDevice(Number(node.id));
+      }
+      return;
+    }
+    if (isInteractive) onSelectDevice(Number(node.id));
+  }, [readOnly, pingArmed, isInteractive, onSelectDevice, onConfigureDevice]);
 
   const handlePaneClick = useCallback(() => {
     onPaneClick?.();
   }, [onPaneClick]);
 
   const handleNodeDoubleClick = useCallback((_, node) => {
-    if (readOnly) return;
     onConfigureDevice(Number(node.id));
-  }, [readOnly, onConfigureDevice]);
+  }, [onConfigureDevice]);
 
   const handleEdgeDoubleClick = useCallback((_, edge) => {
-    if (readOnly) return;
     onConfigureLink?.(Number(edge.id));
-  }, [readOnly, onConfigureLink]);
+  }, [onConfigureLink]);
 
   const handleEdgeMouseEnter = useCallback((_, edge) => {
     setHoveredEdgeId(Number(edge.id));
@@ -171,8 +177,8 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         minZoom={0.3}
         maxZoom={2.5}
         nodesConnectable={false}
-        nodesDraggable={!readOnly}
-        elementsSelectable={!isInteractive && !readOnly}
+        nodesDraggable={!readOnly || !pingArmed}
+        elementsSelectable={!isInteractive && (!readOnly || !pingArmed)}
         proOptions={{ hideAttribution: true }}
         fitView
         fitViewOptions={{ padding: 0.4, maxZoom: 1.2 }}

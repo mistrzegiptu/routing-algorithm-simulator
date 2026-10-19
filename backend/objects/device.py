@@ -11,7 +11,6 @@ def port_generator():
 
     while True:
         ip = f"128.0.{first_part}.{second_part}"
-        Device.ip_address_pool.add(ip)
         yield Port(ip, 24)
 
         second_part += 1
@@ -20,39 +19,39 @@ def port_generator():
             first_part += 1
 
 class Device:
-    _counter = 0
-    ip_address_pool = set()
     port_gen = port_generator()
 
     # Routers grow new interfaces on demand; computers keep a single fixed NIC.
     dynamic_ports = False
 
-    def __init__(self, name = None, port_number = 1):
+    def __init__(self, id,  name = None, port_number = 1, used_ips = ()):
+        self.id = id
         class_name = self.__class__.__name__
-        self.name = f"{class_name}_{Device._counter}" if name is None else name
+        self.name = f"{class_name}_{self.id}" if name is None else name
         self.port_number = port_number
-        self.ports = [next(Device.port_gen) for _ in range(port_number)]
+        self.ports = [Device.next_free_port(used_ips) for _ in range(port_number)]
         self.links = []
-        self.id = Device._counter
         self.routing_table = []
 
-        Device._counter += 1
+    @staticmethod
+    def next_free_port(used_ips = ()):
+        port = next(Device.port_gen)
+        while port.ip in used_ips:
+            port = next(Device.port_gen)
+        return port
 
-    def add_port(self, ip = None, mask = 24):
+    def add_port(self, ip = None, mask = 24, used_ips = ()):
         if not (0 <= mask <= 32):
             raise ValueError("Mask needs to be between 0 and 32")
-        
+
         if ip is not None: addr.IPv4Address(ip)
 
         if ip is None:
-            new_port = next(Device.port_gen)
+            new_port = Device.next_free_port(used_ips)
             if mask != 24:
                 new_port.set_mask(mask)
         else:
-            if ip in Device.ip_address_pool:
-                raise ValueError("IP address already in use")
             new_port = Port(ip, mask)
-            Device.ip_address_pool.add(new_port.ip)
         self.ports.append(new_port)
         self.port_number += 1
         return new_port
@@ -66,10 +65,6 @@ class Device:
         if port not in self.ports:
             raise ValueError("Port does not exist")
         if new_ip is not None:
-            if new_ip in Device.ip_address_pool:
-                raise ValueError("Ip address already in use")
-            Device.ip_address_pool.add(new_ip)
-            Device.ip_address_pool.remove(port.ip)
             port.set_ip(new_ip)
         if new_mask is not None:
             port.set_mask(new_mask)
@@ -80,7 +75,6 @@ class Device:
             raise ValueError("Port does not exist")
         self.ports.remove(port)
         self.port_number -= 1
-        Device.ip_address_pool.remove(port.ip)
         return port
 
     def check_port_availability(self, port_number):
@@ -91,7 +85,7 @@ class Device:
                 return False
         return True
 
-    def allocate_link_port(self):
+    def allocate_link_port(self, used_ips = ()):
         """Return an interface index usable for a new link.
 
         Reuses the first free interface; if none is free and the device
@@ -102,19 +96,28 @@ class Device:
                 return port_num
 
         if self.dynamic_ports:
-            self.add_port()
+            self.add_port(used_ips=used_ips)
             return self.port_number - 1
 
         raise ValueError(f"Device '{self.name}' has no available interface")
 
-    def add_link(self, device_b, port_a_num, port_b_num, bandwidth, delay, unit):
+    def add_link(self, device_b, port_a_num, port_b_num, bandwidth, delay, unit, weight=1, link_id=None):
         if port_a_num >= self.port_number or port_b_num >= device_b.port_number:
             raise ValueError("Invalid port number")
-        
+
         if not self.check_port_availability(port_a_num) or not device_b.check_port_availability(port_b_num):
             raise ValueError("Port is already in use")
-        
-        new_link = Link(self.id, device_b.id, port_a_num, port_b_num, bandwidth, delay, unit)
+        new_link = Link(
+            id=Link._counter if link_id is None else link_id,
+            device_a=self.id,
+            device_b=device_b.id,
+            port_a_num=port_a_num,
+            port_b_num=port_b_num,
+            bandwidth=bandwidth,
+            delay=delay,
+            unit=unit,
+            weight=weight,
+        )
         self.links.append(new_link)
         device_b.links.append(new_link)
         return new_link
@@ -133,7 +136,6 @@ class Device:
 
         removed = self.ports.pop(port_num)
         self.port_number -= 1
-        Device.ip_address_pool.discard(removed.ip)
 
         for link in self.links:
             if link.device_a == self.id and link.port_a_num > port_num:
@@ -225,7 +227,7 @@ class Device:
 if __name__ == "__main__":
     print("=== ROZPOCZĘCIE TESTÓW KLASY DEVICE ===\n")
 
-    r1 = Device(name="Router_Core", port_number=0)
+    r1 = Device(id = 1, name="Router_Core", port_number=0)
     print(f"[*] Utworzono urządzenie: {r1.name}")
 
     p1 = r1.add_port(ip="10.0.0.1", mask=24)

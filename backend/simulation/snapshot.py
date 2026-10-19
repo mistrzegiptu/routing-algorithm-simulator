@@ -16,6 +16,7 @@ class Adjacency:
     neighbor_ip: str
     delay: int
     bandwidth: int | None
+    weight: int = 1
 
 
 @dataclass
@@ -54,6 +55,7 @@ class SimLink:
     delay: int
     bandwidth: int | None
     unit: str
+    weight: int = 1
 
 
 class NetworkSnapshot:
@@ -97,10 +99,11 @@ class NetworkSnapshot:
             if l.port_a_num >= len(node_a.ports) or l.port_b_num >= len(node_b.ports):
                 continue
 
+            weight = getattr(l, "weight", 1)
             links[l.id] = SimLink(
                 id=l.id, a=l.device_a, b=l.device_b,
                 port_a=l.port_a_num, port_b=l.port_b_num,
-                delay=l.delay, bandwidth=l.bandwidth, unit=l.unit,
+                delay=l.delay, bandwidth=l.bandwidth, unit=l.unit, weight=weight,
             )
 
             ip_a, mask_a = node_a.ports[l.port_a_num]
@@ -108,12 +111,12 @@ class NetworkSnapshot:
             adjacency[l.device_a].append(Adjacency(
                 link_id=l.id, neighbor_id=l.device_b,
                 local_port=l.port_a_num, local_ip=ip_a, local_mask=mask_a,
-                neighbor_ip=ip_b, delay=l.delay, bandwidth=l.bandwidth,
+                neighbor_ip=ip_b, delay=l.delay, bandwidth=l.bandwidth, weight=weight,
             ))
             adjacency[l.device_b].append(Adjacency(
                 link_id=l.id, neighbor_id=l.device_a,
                 local_port=l.port_b_num, local_ip=ip_b, local_mask=mask_b,
-                neighbor_ip=ip_a, delay=l.delay, bandwidth=l.bandwidth,
+                neighbor_ip=ip_a, delay=l.delay, bandwidth=l.bandwidth, weight=weight,
             ))
 
         return cls(nodes, links, adjacency)

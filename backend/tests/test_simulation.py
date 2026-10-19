@@ -14,6 +14,19 @@ from simulation.algorithm import RoutingAlgorithm
 from simulation.engine import SimConfig, SimulationEngine
 from simulation.registry import get_algorithm
 from simulation.snapshot import NetworkSnapshot
+from simulation.packet import Packet
+
+
+def inject_ping(engine, source_id, target_id, at_time=0.0):
+    packet = Packet.create_ping_packet(
+        packet_id="test-ping",
+        src_id=source_id,
+        dst_id=target_id,
+        dst_ip=engine.snapshot.first_ip(target_id),
+        ttl=engine.config.ttl,
+        time=at_time,
+    )
+    return engine.inject_packet(source_id, at_time, packet)
 
 
 def link(a, b, delay):
@@ -22,15 +35,15 @@ def link(a, b, delay):
 
 def line_topology():
     """PC1 --10ms-- R1 --5ms-- PC2"""
-    pc1, r1, pc2 = Computer(name="PC1"), Router(name="R1"), Computer(name="PC2")
+    pc1, r1, pc2 = Computer(id=1, name="PC1"), Router(id=2, name="R1"), Computer(id=3, name="PC2")
     links = [link(pc1, r1, 10), link(r1, pc2, 5)]
     return [pc1, r1, pc2], links
 
 
 def diamond_topology():
     """PC1 - R1 - (R2 | R3) - R4 - PC2, all links 10 ms."""
-    pc1, pc2 = Computer(name="PC1"), Computer(name="PC2")
-    r1, r2, r3, r4 = (Router(name=f"R{i}") for i in range(1, 5))
+    pc1, pc2 = Computer(id=1, name="PC1"), Computer(id=6, name="PC2")
+    r1, r2, r3, r4 = (Router(id=i, name=f"R{i}") for i in range(2, 6))
     links = [
         link(pc1, r1, 10),
         link(r1, r2, 10), link(r1, r3, 10),
@@ -80,7 +93,7 @@ def test_ping_request_and_reply_on_line():
     pc1, _, pc2 = devices
     engine = make_engine(devices, links, FirstNeighbor())
 
-    engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+    inject_ping(engine, pc1.id, pc2.id, at_time=0.0)
     events = drain(engine)
 
     delivered = by_type(events, "packet_delivered")
@@ -99,7 +112,7 @@ def test_sent_recv_pairs_carry_link_delay():
     devices, links = line_topology()
     pc1, _, pc2 = devices
     engine = make_engine(devices, links, FirstNeighbor())
-    engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+    inject_ping(engine, pc1.id, pc2.id, at_time=0.0)
     events = drain(engine)
 
     recv_t = {(e.packet_id, e.link_id, e.to_id): e.t for e in by_type(events, "packet_recv")}
@@ -113,7 +126,7 @@ def test_ping_injected_mid_run_uses_given_sim_time():
     pc1, _, pc2 = devices
     engine = make_engine(devices, links, FirstNeighbor())
 
-    engine.inject_ping(pc1.id, pc2.id, at_time=5000.0)
+    inject_ping(engine, pc1.id, pc2.id, at_time=5000.0)
     events = drain(engine)
 
     assert by_type(events, "packet_sent")[0].t == 5000.0
@@ -127,7 +140,7 @@ def test_ttl_expiry_drops_packet():
     engine = make_engine(devices, links, FirstNeighbor(), ttl=2)
 
     # Reaching PC2 needs two transmits; TTL 2 hits zero on the second one.
-    engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+    inject_ping(engine, pc1.id, pc2.id, at_time=0.0)
     events = drain(engine)
 
     assert not by_type(events, "packet_delivered")
@@ -136,11 +149,11 @@ def test_ttl_expiry_drops_packet():
 
 
 def test_isolated_source_is_dead_end():
-    lonely = Computer(name="Lonely")
-    other = Computer(name="Other")
+    lonely = Computer(id=1, name="Lonely")
+    other = Computer(id=2, name="Other")
     engine = make_engine([lonely, other], [], FirstNeighbor())
 
-    engine.inject_ping(lonely.id, other.id, at_time=0.0)
+    inject_ping(engine, lonely.id, other.id, at_time=0.0)
     events = drain(engine)
 
     drops = by_type(events, "packet_dropped")
@@ -150,11 +163,11 @@ def test_isolated_source_is_dead_end():
 def test_max_events_limit_trips():
     # A packet addressed to a nonexistent node bounces between two routers
     # forever (the only move is backtracking) until the safety rail trips.
-    r1, r2 = Router(name="RA"), Router(name="RB")
+    r1, r2 = Router(id=1, name="RA"), Router(id=2, name="RB")
     links = [link(r1, r2, 1)]
     engine = make_engine([r1, r2], links, FirstNeighbor(), ttl=10_000, max_events=50)
 
-    engine.inject_ping(r1.id, 99_999, at_time=0.0)
+    inject_ping(engine, r1.id, 99_999, at_time=0.0)
     drain(engine)
 
     assert engine.limit_hit == "max_events"
@@ -167,7 +180,7 @@ def test_random_walk_completes_ping_on_diamond():
     pc1, pc2 = devices[0], devices[-1]
     engine = make_engine(devices, links, get_algorithm("random_walk"), seed=7)
 
-    engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+    inject_ping(engine, pc1.id, pc2.id, at_time=0.0)
     events = drain(engine)
 
     delivered = by_type(events, "packet_delivered")
@@ -182,7 +195,7 @@ def test_random_walk_is_deterministic_per_seed():
 
     def run(seed):
         engine = make_engine(devices, links, get_algorithm("random_walk"), seed=seed)
-        engine.inject_ping(devices[0].id, devices[-1].id, at_time=0.0)
+        inject_ping(engine, devices[0].id, devices[-1].id, at_time=0.0)
         return [(e.t, e.type, e.from_id, e.to_id, e.node_id) for e in drain(engine)]
 
     assert run(42) == run(42)
@@ -196,7 +209,7 @@ def test_random_walk_can_backtrack():
 
     def has_backtrack(seed):
         engine = make_engine(devices, links, get_algorithm("random_walk"), seed=seed)
-        engine.inject_ping(pc1.id, pc2.id, at_time=0.0)
+        inject_ping(engine, pc1.id, pc2.id, at_time=0.0)
         events = drain(engine)
 
         paths = {}

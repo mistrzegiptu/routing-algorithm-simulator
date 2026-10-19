@@ -1,6 +1,7 @@
 import heapq
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from .models import SimConfig, Timer
 
 from .events import (
     KIND_CONTROL,
@@ -14,24 +15,6 @@ from .events import (
     SimEvent,
 )
 from .packet import Packet
-
-
-@dataclass
-class SimConfig:
-    seed: int | None = None
-    ttl: int = 64
-    # Runaway guard (buggy flooding, endless control storms). TTL bounds each
-    # individual packet; this bounds the whole session.
-    max_events: int = 50_000
-
-
-@dataclass
-class Timer:
-    """Passed back to RoutingAlgorithm.on_timer when a scheduled timer fires."""
-    node_id: int
-    name: str
-    payload: dict = field(default_factory=dict)
-
 
 @dataclass
 class _Arrival:
@@ -171,24 +154,11 @@ class SimulationEngine:
             self.limit_hit = "max_events"
         return events
 
-    def inject_ping(self, source_id, target_id, at_time):
-        """Schedule an ICMP request source→target at sim time ``at_time``."""
-        at = max(at_time, self.now)
-        packet = Packet(
-            id=self._next_packet_id(),
-            kind=KIND_DATA,
-            protocol="icmp",
-            src_id=source_id,
-            dst_id=target_id,
-            dst_ip=self.snapshot.first_ip(target_id),
-            ttl=self.config.ttl,
-            meta={"icmp": "request", "created_t": at},
-        )
-        # ping_id tags this specific user-initiated operation; all copies of
-        # this request (flooding) and the eventual reply share the same id so
-        # the frontend can count operations rather than raw packets.
-        packet.meta["ping_id"] = packet.id
-        self._push(at, _Arrival(packet, source_id, None, None))
+    def inject_packet(self, source_id, curr_time, packet):
+        """Schedule a packet source→target at sim time ``at_time``."""
+        if packet.meta.get("icmp") == "request":
+            packet.meta.setdefault("ping_id", packet.id)
+        self._push(curr_time, _Arrival(packet, source_id, None, None))
         return packet.id
 
     def summary(self):
@@ -252,25 +222,21 @@ class SimulationEngine:
         # Real ICMP: the destination answers, and the reply has to find its
         # own way back through the same algorithm (a random walk wanders home).
         if icmp == "request":
-            reply_meta = {
-                "icmp": "reply",
-                "request_id": packet.id,
-                "created_t": self.now,
-                "request_created_t": packet.meta.get("created_t"),
-            }
-            if ping_id is not None:
-                reply_meta["ping_id"] = ping_id
-            reply = Packet(
-                id=self._next_packet_id(),
-                kind=KIND_DATA,
-                protocol="icmp",
+            reply = Packet.create_ping_packet(
+                packet_id=self._next_packet_id(),
                 src_id=node.id,
                 dst_id=packet.src_id,
                 dst_ip=self.snapshot.first_ip(packet.src_id),
                 ttl=self.config.ttl,
-                meta=reply_meta,
+                time=self.now,
+                icmp_type="reply",
+                request_id=packet.id,
+                request_created_t=packet.meta.get("created_t")
             )
+            if ping_id is not None:
+                reply.meta["ping_id"] = ping_id
             self._push(self.now, _Arrival(reply, node.id, None, None))
+
 
     def _is_delivered(self, node, packet):
         if packet.dst_id is not None and node.id == packet.dst_id:
