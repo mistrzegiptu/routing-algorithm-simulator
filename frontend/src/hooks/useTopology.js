@@ -51,6 +51,7 @@ export function useTopology(canvasRef) {
             bandwidth: l.bandwidth,
             delay: l.delay,
             bandwidthUnit: l.unit,
+            weight: l.weight,
         }));
     
         setDevices(newDevices);

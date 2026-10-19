@@ -3,7 +3,7 @@ import { AddingLinkState } from "../models/AddingLinkState.js";
 import { PingState } from "../models/PingState.js";
 import { pingDevice } from '../api/device_api';
 
-export function useBuildTools(removeDevice, saveNewLink, saveDeviceConfig) {
+export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
     const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
     const [selectedLinkId, setSelectedLinkId] = useState(null);
@@ -186,22 +186,18 @@ export function useBuildTools(removeDevice, saveNewLink, saveDeviceConfig) {
     
     // --- Link editing (double-click) ---
     const requestConfigureLink = useCallback((id) => {
-        if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
+        if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL && !simPingArmed) {
             setSelectedLinkId(id);
         }
-    }, [addingLinkState, pingState]);
+    }, [addingLinkState, pingState, simPingArmed]);
     
     const handleCloseLinkConfig = useCallback(() => setSelectedLinkId(null), []);
 
     const handleConfigureDevice = useCallback((id) => {
-        if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL) {
+        if (addingLinkState === AddingLinkState.NORMAL && pingState === PingState.NORMAL && !simPingArmed) {
             setSelectedDeviceId(id);
         }
-    }, [addingLinkState, pingState]);
-    
-    const handleSaveConfig = useCallback(async (id, updatedData) => {
-        await saveDeviceConfig(id, updatedData)
-    }, [saveDeviceConfig]);
+    }, [addingLinkState, pingState, simPingArmed]);
 
     return {
         selectedDeviceId,
@@ -223,7 +219,6 @@ export function useBuildTools(removeDevice, saveNewLink, saveDeviceConfig) {
         pingHandler,
         handleSelectDevice,
         handleConfigureDevice,
-        handleSaveConfig,
         handleCloseConfig,
         requestConfigureLink,
         handleCloseLinkConfig,
