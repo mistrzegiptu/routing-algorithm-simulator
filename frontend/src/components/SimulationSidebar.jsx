@@ -306,14 +306,14 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
             className={`sidebar__link-btn sim-ping-toggle${simPingArmed ? " sim-ping-toggle--armed" : ""}`}
             onClick={onToggleSimPing}
             disabled={!running}
-            title={running ? (simPingArmed ? "Kliknij, aby wyłączyć tryb pingu" : "Kliknij, aby włączyć tryb pingu") : "Uruchom symulację, aby pingować"}
+            title={running ? (simPingArmed ? "Kliknij, aby wyłączyć tryb pingowania" : "Kliknij, aby włączyć tryb pingowania") : "Uruchom symulację, aby pingować"}
           >
-            {simPingArmed ? "Dezaktywuj ping" : "Aktywuj ping"}
+            {simPingArmed ? "Wyłącz tryb pingowania" : "Włącz tryb pingowania"}
           </button>
           {pingHint && <p className="sidebar__hint">{pingHint}</p>}
           {!running && (
             <p className="sim-note">
-              Uruchom symulację, a następnie aktywuj tryb pingu,
+              Uruchom symulację, a następnie włącz tryb pingowania,
               aby wysłać pakiety między urządzeniami.
             </p>
           )}

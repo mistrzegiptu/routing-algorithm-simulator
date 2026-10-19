@@ -92,7 +92,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         // Clickable affordance (pointer + hover ring): link/ping picking on the
         // Build screen, or a running simulation waiting for ping clicks.
         linking: isInteractive || (readOnly && pingArmed),
-        isSource: d.id === sourceDeviceId || (pingArmed && d.id === pingSourceId),
+        isSource: d.id === sourceDeviceId || d.id === pingSourceId,
         showIp: showInterfaceIps,
         // No delete affordance on the read-only (simulation) canvas.
         onRequestDelete: readOnly ? undefined : onRequestDeleteDevice,
@@ -115,7 +115,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         showIps: showInterfaceIps,
         highlighted: isHighlighted,
         dimmed: highlightedLinkIds.length > 0 && !isHighlighted,
-        hovered: !(readOnly && pingArmed) && !isInteractive && link.id === hoveredEdgeId,
+        hovered: !readOnly && !isInteractive && link.id === hoveredEdgeId,
         onRequestDelete: readOnly ? undefined : onRequestDeleteLink,
       },
     };
