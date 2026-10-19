@@ -1,0 +1,79 @@
+/* ── SimulationStats component styles ── */
+
+.sim-stats {
+    gap: 10px !important;
+}
+
+.sim-stats__group {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.sim-stats__group-title {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: var(--bg-panel-2);
+    border-bottom: 1px solid var(--border);
+}
+
+.sim-stats__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    background: var(--bg-panel);
+    font-size: 12px;
+    min-height: 28px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sim-stats__row:last-child {
+    border-bottom: none;
+}
+
+.sim-stats__row--highlight {
+    background: var(--accent-soft);
+}
+
+.sim-stats__label {
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 8px;
+}
+
+.sim-stats__value {
+    font-weight: 600;
+    color: var(--text);
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.sim-stats__value--good {
+    color: var(--link);
+}
+
+.sim-stats__value--bad {
+    color: var(--danger);
+}
+
+.sim-stats__value--accent {
+    color: var(--accent);
+}
+
+.sim-stats__unit {
+    font-weight: 400;
+    font-size: 10.5px;
+    color: var(--text-faint);
+    margin-left: 2px;
+}
