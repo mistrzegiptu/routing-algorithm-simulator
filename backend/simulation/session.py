@@ -106,7 +106,8 @@ class SimulationSession:
 
     async def disconnect_link(self, link_id):
         if self.engine is not None:
-            self.engine.disconnect_link(link_id)
+            events = self.engine.disconnect_link(link_id)
+            await self.send_events(events)
 
         self._wake_event.set()
         await self.send({
