@@ -1,6 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ModeSwitch from "./ModeSwitch.jsx";
 import { fetchAlgorithms, SimulationSocket } from "../api/simulation_api.js";
+import { useSimStats } from "./useSimStats.js";
+import SimulationStatsPanel from "./SimulationStatsPanel.jsx";
 import "./Sidebar.css";
 
 const STATUS_LABELS = {
@@ -54,8 +57,24 @@ function formatEvent(ev, nameOf) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 const SimulationSidebar = forwardRef(function SimulationSidebar(
-  { devices, mode, onSwitchMode, pingSourceId, simPingArmed, onToggleSimPing, onStatusChange, speed, onSpeedChange, onSimEvent, onSimReset, onLinkDisconnected },
+  {
+    devices,
+    links,
+    mode,
+    onSwitchMode,
+    pingSourceId,
+    simPingArmed,
+    onToggleSimPing,
+    onStatusChange,
+    speed,
+    onSpeedChange,
+    onSimEvent,
+    onSimReset,
+    onSimFinished,
+  },
   ref
 ) {
   const [algorithms, setAlgorithms] = useState([]);
@@ -66,6 +85,15 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   const [finished, setFinished] = useState(null);
   const [eventCount, setEventCount] = useState(0);
   const [logLines, setLogLines] = useState([]);
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
+
+  useEffect(() => {
+    setPortalTarget(document.querySelector(".app-root") || document.body);
+  }, []);
+
+  // Stats managed by the dedicated hook.
+  const { statsSnap, derived, accumulateStats, recordPingSent, resetStats, getLatestStats } = useSimStats(status);
 
   const socketRef = useRef(null);
   const logRef = useRef(null);
@@ -77,8 +105,18 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   onStatusChangeRef.current = onStatusChange;
   const onSimEventRef = useRef(onSimEvent);
   onSimEventRef.current = onSimEvent;
-  const onLinkDisconnectedRef = useRef(onLinkDisconnected);
-  onLinkDisconnectedRef.current = onLinkDisconnected;
+  const onSimFinishedRef = useRef(onSimFinished);
+  onSimFinishedRef.current = onSimFinished;
+
+  // Keep derived props that summary modal needs accessible inside closures.
+  const linksRef = useRef(links);
+  linksRef.current = links;
+  const algorithmRef = useRef(algorithm);
+  algorithmRef.current = algorithm;
+  const algorithmsRef = useRef(algorithms);
+  algorithmsRef.current = algorithms;
+  const getLatestStatsRef = useRef(getLatestStats);
+  getLatestStatsRef.current = getLatestStats;
 
   useEffect(() => {
     fetchAlgorithms()
@@ -111,15 +149,38 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     const socket = new SimulationSocket({
       onEvent: (ev) => {
         setEventCount((n) => n + 1);
+        accumulateStats(ev);
         onSimEventRef.current?.(ev);
         const line = formatEvent(ev, nameOf);
         if (line) setLogLines((prev) => [...prev.slice(-99), line]);
       },
       onStatus: (msg) => applyStatus(msg.state),
-      onFinished: (msg) => setFinished(msg),
+      onFinished: (msg) => {
+        setFinished(msg);
+        // Fire the summary callback — snap the current stats from the ref so
+        // it includes events processed right up to the finish message.
+        const currentLinks = linksRef.current;
+        const avgLinkDelay =
+          currentLinks.length > 0
+            ? currentLinks.reduce((sum, l) => sum + (l.delay || 0), 0) / currentLinks.length
+            : 0;
+        const algoName =
+          algorithmsRef.current.find((a) => a.name === algorithmRef.current)?.display_name ??
+          algorithmRef.current;
+        const latest = getLatestStatsRef.current();
+        onSimFinishedRef.current?.({
+          finished: msg,
+          algorithm: algoName,
+          deviceCount: devicesRef.current.length,
+          linkCount: currentLinks.length,
+          avgLinkDelay,
+          statsSnap: latest.statsSnap,
+          derived: latest.derived,
+        });
+      },
       onError: (message) => setErrorMsg(message),
+      onPingSent: () => recordPingSent(),
       onClose: () => applyStatus("idle"),
-      onLinkDisconnected: (linkId) => onLinkDisconnectedRef.current?.(linkId),
     });
     await socket.connect();
     socketRef.current = socket;
@@ -129,13 +190,16 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   // The canvas (via App) sends pings into the running world through this handle.
   useImperativeHandle(ref, () => ({
     sendPing: (sourceId, targetId) => socketRef.current?.ping(sourceId, targetId),
-  }), []);
+    getLatestStats: () => getLatestStats(),
+  }), [getLatestStats]);
+
 
   const handleStart = async () => {
     setErrorMsg(null);
     setFinished(null);
     setEventCount(0);
     setLogLines([]);
+    resetStats();
     onSimReset?.();
     try {
       const socket = await ensureSocket();
@@ -165,6 +229,12 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     : pingSourceId === null || pingSourceId === undefined
       ? "Kliknij urządzenie źródłowe na kanwie"
       : `Źródło: ${nameOf(pingSourceId)} — kliknij cel pingu`;
+
+  // ── Derived stats for rendering ──
+  const avgLinkDelay =
+    links.length > 0
+      ? links.reduce((sum, l) => sum + (l.delay || 0), 0) / links.length
+      : 0;
 
   return (
     <aside className="sidebar sidebar--sim">
@@ -242,14 +312,14 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
             className={`sidebar__link-btn sim-ping-toggle${simPingArmed ? " sim-ping-toggle--armed" : ""}`}
             onClick={onToggleSimPing}
             disabled={!running}
-            title={running ? (simPingArmed ? "Kliknij, aby wyłączyć tryb pingu" : "Kliknij, aby włączyć tryb pingu") : "Uruchom symulację, aby pingować"}
+            title={running ? (simPingArmed ? "Kliknij, aby wyłączyć tryb pingowania" : "Kliknij, aby włączyć tryb pingowania") : "Uruchom symulację, aby pingować"}
           >
-            {simPingArmed ? "Dezaktywuj ping" : "Aktywuj ping"}
+            {simPingArmed ? "Wyłącz tryb pingowania" : "Włącz tryb pingowania"}
           </button>
           {pingHint && <p className="sidebar__hint">{pingHint}</p>}
           {!running && (
             <p className="sim-note">
-              Uruchom symulację, a następnie aktywuj tryb pingu,
+              Uruchom symulację, a następnie włącz tryb pingowania,
               aby wysłać pakiety między urządzeniami.
             </p>
           )}
@@ -289,7 +359,33 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
             </span>
           </div>
         </section>
+
+        {/* ── Statistics side panel toggle button ── */}
+        <section className="sidebar__section">
+          <button
+            className={`sidebar__link-btn ${showStatsPanel ? "is-active" : ""}`}
+            onClick={() => setShowStatsPanel((v) => !v)}
+            type="button"
+          >
+            {showStatsPanel ? "Ukryj statystyki" : "Statystyki"}
+          </button>
+        </section>
       </div>
+
+      {showStatsPanel &&
+        portalTarget &&
+        createPortal(
+          <SimulationStatsPanel
+            onClose={() => setShowStatsPanel(false)}
+            statsSnap={statsSnap}
+            derived={derived}
+            algorithm={selectedAlgo?.display_name ?? algorithm}
+            deviceCount={devices.length}
+            linkCount={links.length}
+            avgLinkDelay={avgLinkDelay}
+          />,
+          portalTarget
+        )}
     </aside>
   );
 });
