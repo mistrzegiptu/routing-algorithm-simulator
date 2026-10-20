@@ -142,3 +142,15 @@ class NetworkSnapshot:
             if ip:
                 return ip
         return None
+
+    def disconnect_link(self, link_id):
+        link = self.links.pop(link_id, None)
+        if not link:
+            return False
+
+        for node_id in (link.a, link.b):
+            self._adjacency[node_id] = [
+                adjacency for adjacency in self._adjacency[node_id]
+                if adjacency.link_id != link_id
+            ]
+        return True

@@ -51,6 +51,14 @@ export function useSimulationState(links) {
             delete next[key];
             return next;
         });
+        } else if (ev.type === 'packet_dropped' && ev.payload?.reason === 'link_disconnected') {
+            const key = `${id}:${ev.link_id}`;
+            setSimSegments(prev => {
+                if (!(key in prev)) return prev;
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
         } else if (ev.type === 'packet_delivered' || ev.type === 'packet_dropped') {
         // No link_id on these events, so match the in-flight copy that was headed
         // to this node without touching sibling copies still flying elsewhere.

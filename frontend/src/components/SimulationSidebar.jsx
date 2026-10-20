@@ -41,6 +41,12 @@ function formatEvent(ev, nameOf) {
       }
       return { text: `[${t}] ✓ Dostarczono do ${nameOf(ev.node_id)}`, tone: "good" };
     case "packet_dropped":
+      if (p.reason === "link_disconnected") {
+        return {
+          text: `[${t}] ✗ Pakiet porzucono na łączu ${nameOf(ev.from_id)} → ${nameOf(ev.to_id)} (łącze usunięte)`,
+          tone: "bad",
+        };
+      }
       return { text: `[${t}] ✗ Porzucono w ${nameOf(ev.node_id)} (${p.reason ?? "?"})`, tone: "bad" };
     case "table_update":
       return { text: `[${t}] Tablica routingu: ${nameOf(ev.node_id)}` };
@@ -67,7 +73,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     onSpeedChange,
     onSimEvent,
     onSimReset,
-    onSimFinished,   // (summaryData) → called when simulation ends
+    onSimFinished,
   },
   ref
 ) {

@@ -302,3 +302,34 @@ class SimulationEngine:
     def _next_packet_id(self):
         self._packet_seq += 1
         return f"p{self._packet_seq}"
+
+    def disconnect_link(self, link_id):
+        if not self.snapshot.disconnect_link(link_id):
+            return
+
+        retained = []
+
+        for item in self._queue:
+            arrival = item[-1]
+            if isinstance(arrival, _Arrival) and arrival.link_id == link_id:
+                payload = {"reason": "link_disconnected"}
+                icmp = arrival.packet.meta.get("icmp")
+                if icmp:
+                    payload["icmp"] = icmp
+
+                self._emit(
+                    PACKET_DROPPED,
+                    kind=arrival.packet.kind,
+                    packet_id=arrival.packet.id,
+                    protocol=arrival.packet.protocol,
+                    from_id=arrival.from_id,
+                    to_id=arrival.node_id,
+                    link_id=link_id,
+                    payload=payload,
+                )
+            else:
+                retained.append(item)
+
+        self._queue = retained
+        heapq.heapify(self._queue)
+        return self._collect()

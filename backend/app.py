@@ -74,7 +74,11 @@ def get_simulation_algorithms():
 async def simulation_websocket(websocket: WebSocket, store: TopologyStore = Depends(get_topology_store)):
     # One connection = one playback session; protocol in docs/simulation-design.md §8.
     session = SimulationSession(websocket, store)
-    await session.handle()
+    store.simulation_sessions.add(session)
+    try:
+        await session.handle()
+    finally:
+        store.simulation_sessions.discard(session)
 
 
 @app.post("/api/devices")
@@ -140,7 +144,7 @@ def update_device(
 
 
 @app.delete("/api/devices/{device_id}")
-def delete_device(device_id: int, store: TopologyStore = Depends(get_topology_store)):
+async def delete_device(device_id: int, store: TopologyStore = Depends(get_topology_store)):
     device = store.find_device(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -185,6 +189,10 @@ def delete_device(device_id: int, store: TopologyStore = Depends(get_topology_st
         for l in store.links
         if l.device_a in freed_peer_ports or l.device_b in freed_peer_ports
     ]
+
+    for session in tuple(store.simulation_sessions):
+        for link_id in removed_link_ids:
+            await session.disconnect_link(link_id)
 
     return {
         "message": "Device deleted successfully",
@@ -251,7 +259,7 @@ def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get
 
 
 @app.delete("/api/links/{link_id}")
-def delete_link(link_id: int, store: TopologyStore = Depends(get_topology_store)):
+async def delete_link(link_id: int, store: TopologyStore = Depends(get_topology_store)):
     link = next((l for l in store.links if l.id == link_id), None)
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
@@ -276,6 +284,9 @@ def delete_link(link_id: int, store: TopologyStore = Depends(get_topology_store)
         serialize_link(l) for l in store.links
         if l.device_a in touched_ids or l.device_b in touched_ids
     ]
+
+    for session in tuple(store.simulation_sessions):
+        await session.disconnect_link(link_id)
 
     return {
         "message": "Link deleted successfully",

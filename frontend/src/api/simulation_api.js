@@ -16,7 +16,7 @@ export async function fetchAlgorithms() {
  * future SimulationOverlay reuses this class unchanged.
  */
 export class SimulationSocket {
-    constructor({ onEvent, onStatus, onFinished, onError, onPingSent, onClose } = {}) {
+    constructor({ onEvent, onStatus, onFinished, onError, onPingSent, onClose, onLinkDisconnected } = {}) {
         this.onEvent = onEvent;
         this.onStatus = onStatus;
         this.onFinished = onFinished;
@@ -24,6 +24,7 @@ export class SimulationSocket {
         this.onPingSent = onPingSent;
         this.onClose = onClose;
         this.ws = null;
+        this.onLinkDisconnected = onLinkDisconnected;
     }
 
     connect() {
@@ -51,6 +52,7 @@ export class SimulationSocket {
                 else if (msg.type === "finished") this.onFinished?.(msg);
                 else if (msg.type === "error") this.onError?.(msg.message);
                 else if (msg.type === "ping_sent") this.onPingSent?.(msg);
+                else if (msg.type === "link_disconnected") this.onLinkDisconnected?.(msg.link_id);
             };
         });
     }
