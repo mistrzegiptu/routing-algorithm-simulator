@@ -133,7 +133,7 @@ function App() {
     ? links.reduce((sum, l) => sum + (l.delay || 0), 0) / links.length
     : 0;
 
-  // Called by SimulationSidebar when a simulation ends.
+   // Called by SimulationSidebar when a simulation ends.
   const handleSimFinished = (finished) => {
     setSimSummaryData({
       finished,
@@ -153,6 +153,7 @@ function App() {
     if (!simRunning) return;
     handleSimDeviceClick(id);
   }, [addingLinkState, handleSelectDevice, simRunning, handleSimDeviceClick]);
+
 
   const handleToggleSimPing = () => {
     resetLinkSelection();
