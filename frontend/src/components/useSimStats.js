@@ -112,11 +112,9 @@ export function useSimStats(status) {
       statsTimerRef.current = setInterval(() => {
         setStatsSnap(cloneRaw(statsRef.current));
       }, 500);
-    } else if (status === "finished") {
-      // Push a final snapshot when simulation finishes.
-      setStatsSnap(cloneRaw(statsRef.current));
-      clearInterval(statsTimerRef.current);
     } else {
+      // Push a final snapshot when the simulation finishes or is stopped.
+      setStatsSnap(cloneRaw(statsRef.current));
       clearInterval(statsTimerRef.current);
     }
     return () => clearInterval(statsTimerRef.current);

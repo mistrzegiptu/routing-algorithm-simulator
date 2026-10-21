@@ -29,7 +29,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   addingLinkState,
   sourceDeviceId,
   showInterfaceIps = true,
-  readOnly = false,
+  simMode = false,
   pingArmed = false,
   onUpdateDevicePosition,
   onSelectDevice,
@@ -77,6 +77,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
     pingState === PingState.SELECTING_DESTINATION;
 
   const isInteractive = isLinking || isPinging;
+  const isPicking = isInteractive || (simMode && pingArmed);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [hoveredEdgeId, setHoveredEdgeId] = useState(null);
@@ -92,17 +93,16 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         position: { x: d.x, y: d.y },
         data: {
           device: d,
-          // Clickable affordance (pointer + hover ring): link/ping picking on the
-          // Build screen, or a running simulation waiting for ping clicks.
-          linking: isInteractive || (readOnly && pingArmed),
+          // Clickable affordance (pointer + hover ring): link/ping picking, or a
+          // running simulation waiting for ping clicks.
+          linking: isPicking,
           isSource: d.id === sourceDeviceId || d.id === pingSourceId,
           showIp: showInterfaceIps,
-          // No delete affordance on the read-only (simulation) canvas.
-          onRequestDelete: readOnly ? undefined : onRequestDeleteDevice,
+          onRequestDelete: onRequestDeleteDevice,
         },
       }));
     });
-  }, [devices, isInteractive, sourceDeviceId, pingSourceId, showInterfaceIps, readOnly, pingArmed, onRequestDeleteDevice, setNodes]);
+  }, [devices, isPicking, sourceDeviceId, pingSourceId, showInterfaceIps, onRequestDeleteDevice, setNodes]);
 
   const edges = useMemo(() => links.map((link) => {
     const a = devices.find((d) => d.id === link.sourceId);
@@ -119,25 +119,16 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         showIps: showInterfaceIps,
         highlighted: isHighlighted,
         dimmed: highlightedLinkIds.length > 0 && !isHighlighted,
-        hovered: !readOnly && !isInteractive && link.id === hoveredEdgeId,
-        onRequestDelete: readOnly ? undefined : onRequestDeleteLink,
+        hovered: !isPicking && link.id === hoveredEdgeId,
+        onRequestDelete: onRequestDeleteLink,
       },
     };
-  }), [links, devices, showInterfaceIps, highlightedLinkIds, isInteractive, hoveredEdgeId, readOnly, onRequestDeleteLink]);
+  }), [links, devices, showInterfaceIps, highlightedLinkIds, isPicking, hoveredEdgeId, onRequestDeleteLink]);
 
   const handleNodeClick = useCallback((_, node) => {
-    if (readOnly) {
-      if (pingArmed) {
-        // Ping mode armed: let the app pick source/target.
-        onSelectDevice(Number(node.id));
-      } else {
-        // Ping mode disarmed: open the device config panel.
-        onConfigureDevice(Number(node.id));
-      }
-      return;
-    }
-    if (isInteractive) onSelectDevice(Number(node.id));
-  }, [readOnly, pingArmed, isInteractive, onSelectDevice, onConfigureDevice]);
+    if (isPicking) onSelectDevice(Number(node.id));
+    else if (simMode) onConfigureDevice(Number(node.id));
+  }, [isPicking, simMode, onSelectDevice, onConfigureDevice]);
 
   const handlePaneClick = useCallback(() => {
     onPaneClick?.();
@@ -181,8 +172,8 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         minZoom={0.3}
         maxZoom={2.5}
         nodesConnectable={false}
-        nodesDraggable={!readOnly || !pingArmed}
-        elementsSelectable={!isInteractive && (!readOnly || !pingArmed)}
+        nodesDraggable={!simMode || !pingArmed}
+        elementsSelectable={!isPicking}
         proOptions={{ hideAttribution: true }}
         fitView
         fitViewOptions={{ padding: 0.4, maxZoom: 1.2 }}

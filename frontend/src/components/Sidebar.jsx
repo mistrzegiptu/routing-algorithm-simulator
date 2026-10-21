@@ -1,7 +1,7 @@
-import React, { useRef } from "react";
+import React from "react";
 import AddItemForm from "../devices/AddItemForm.jsx";
 import ModeSwitch from "./ModeSwitch.jsx";
-import { AddingLinkState } from "../models/AddingLinkState.js";
+import { AddingLinkState, linkHint as linkHintFor } from "../models/AddingLinkState.js";
 import { PingState } from "../models/PingState.js";
 import routerImg from "../../images/router.png";
 import computerImg from "../../images/computer.png";
@@ -24,12 +24,7 @@ export default function Sidebar({
   const isLinking = addingLinkState !== AddingLinkState.NORMAL;
   const isPinging = pingState !== PingState.NORMAL;
 
-  const linkHint =
-    addingLinkState === AddingLinkState.SELECTING_SOURCE
-      ? "Kliknij urządzenie źródłowe"
-      : addingLinkState === AddingLinkState.SELECTING_DESTINATION
-        ? "Kliknij urządzenie docelowe"
-        : null;
+  const linkHint = linkHintFor(addingLinkState);
 
   const pingHint =
     pingState === PingState.SELECTING_SOURCE
@@ -79,10 +74,11 @@ export default function Sidebar({
       const data = await file.text();
       const jsonData = JSON.parse(data);
       await importNetwork(jsonData);
-      onImport(jsonData.devices_db, jsonData.links_db);
+      const imported = await exportNetwork();
+      onImport(imported.devices_db, imported.links_db);
     } catch (err) {
       console.error("Err: ", err);
-      alert("Błąd podczas próby importu topologii.");
+      alert(`Błąd podczas próby importu topologii.\n\n${err.message}`);
     } finally {
       event.target.value = null;
     }

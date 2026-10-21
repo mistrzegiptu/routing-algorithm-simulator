@@ -1,0 +1,32 @@
+.panel-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 7px;
+    z-index: 60;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.panel-resizer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.panel-resizer:hover::after,
+.is-resizing-panel .panel-resizer::after {
+    background: var(--accent);
+}
+
+.is-resizing-panel,
+.is-resizing-panel * {
+    cursor: col-resize !important;
+    user-select: none;
+}

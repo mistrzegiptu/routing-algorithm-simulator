@@ -11,6 +11,10 @@ import EditLinkModal from "./modals/EditLinkModal.jsx";
 import PingResultPanel from "./modals/PingResultPanel.jsx";
 import ConfirmDialog from "./modals/ConfirmDialog.jsx";
 import SimulationSummaryModal from "./modals/SimulationSummaryModal.jsx";
+import SimPanelToggles from "./components/SimPanelToggles.jsx";
+import SimulationLogPanel from "./components/SimulationLogPanel.jsx";
+import SimulationStatsPanel from "./components/SimulationStatsPanel.jsx";
+import SimulationEditPanel from "./components/SimulationEditPanel.jsx";
 import "./App.css";
 import { useSimulationState } from './hooks/useSimulationState.js';
 import { useBuildTools } from './hooks/useBuildTools.js';
@@ -21,6 +25,9 @@ function App() {
   const [simSummaryData, setSimSummaryData] = useState(null);
   const [showInterfaceIps, setShowInterfaceIps] = useState(true);
   const [simPingArmed, setSimPingArmed] = useState(false);
+  const [simPanel, setSimPanel] = useState(null);
+  const [simSidebarCollapsed, setSimSidebarCollapsed] = useState(false);
+  const [simAlgorithmLabel, setSimAlgorithmLabel] = useState("");
 
   const canvasRef = useRef(null);
 
@@ -46,13 +53,19 @@ function App() {
     simSpeed,
     setSimSpeed,
     simSegments,
+    simLog,
+    simTables,
+    statsSnap,
+    derived,
+    recordPingSent,
+    getLatestStats,
     handleSimEvent,
     handleSimReset,
     handleSimStatusChange,
     handleSimDeviceClick,
     handleSimPaneClick,
     setSimPingSourceId
-  } = useSimulationState(links)
+  } = useSimulationState(devices, links)
 
   const {
     selectedDeviceId,
@@ -93,15 +106,15 @@ function App() {
     } catch (error) {
       console.error("Error deleting link:", error);
     }
-  }, []);
+  }, [removeLink, setHighlightedLinkIds, setSelectedLinkId]);
 
   // --- Screen mode (Buduj / Symuluj) ---
   const handleSwitchMode = (mode) => {
     if (mode === appMode) return;
+    resetLinkSelection();
     if (mode === AppMode.SIMULATE) {
-      // Leave build-time tools/panels behind; the simulation canvas is read-only.
+      // Leave build-time tools/panels behind.
       resetPing();
-      resetLinkSelection();
       setSelectedDeviceId(null);
       setSelectedLinkId(null);
       cancelDeleteDevice();
@@ -115,15 +128,53 @@ function App() {
     setAppMode(mode);
   };
 
-  // Called by SimulationSidebar when a simulation ends; receives topology
-  // context, finished metadata, and up-to-date stats snapshot.
-  const handleSimFinished = useCallback((data) => {
-    setSimSummaryData(data);
-  }, []);
+  const avgLinkDelay = links.length > 0
+    ? links.reduce((sum, l) => sum + (l.delay || 0), 0) / links.length
+    : 0;
+
+  // Called by SimulationSidebar when a simulation ends.
+  const handleSimFinished = (finished) => {
+    setSimSummaryData({
+      finished,
+      algorithm: simAlgorithmLabel,
+      deviceCount: devices.length,
+      linkCount: links.length,
+      avgLinkDelay,
+      ...getLatestStats(),
+    });
+  };
 
   const handleSimDeviceSelection = (id) => {
+    if (addingLinkState !== AddingLinkState.NORMAL) {
+      handleSelectDevice(id);
+      return;
+    }
     if (!simRunning) return;
     handleSimDeviceClick(id);
+  };
+
+  const handleToggleSimPing = () => {
+    resetLinkSelection();
+    setSimPingArmed(v => !v);
+    setSimPingSourceId(null);
+  };
+
+  const handleToggleSimAddLink = () => {
+    setSimPingArmed(false);
+    setSimPingSourceId(null);
+    addLinkHandler();
+  };
+
+  const handleToggleSimPanel = (panel) => {
+    const next = simPanel === panel ? null : panel;
+    if (simPanel === 'edit' && next !== 'edit') resetLinkSelection();
+    setSimPanel(next);
+  };
+
+  const handleConfirmDeleteDevice = async () => {
+    const id = devicePendingDeletion;
+    await confirmDeleteDevice();
+    if (simPingSourceId === id) setSimPingSourceId(null);
   };
 
   const handleSimulationStatusChange = (state) => {
@@ -161,21 +212,21 @@ function App() {
         <SimulationSidebar
           ref={simSidebarRef}
           devices={devices}
-          links={links}
           mode={appMode}
           onSwitchMode={handleSwitchMode}
           pingSourceId={simPingSourceId}
           simPingArmed={simPingArmed}
-          onToggleSimPing={() => {
-            setSimPingArmed(v => !v);
-            setSimPingSourceId(null);
-          }}
+          onToggleSimPing={handleToggleSimPing}
           onStatusChange={handleSimulationStatusChange}
           speed={simSpeed}
           onSpeedChange={setSimSpeed}
+          onAlgorithmChange={setSimAlgorithmLabel}
           onSimEvent={handleSimEvent}
           onSimReset={handleSimReset}
           onSimFinished={handleSimFinished}
+          onPingSent={recordPingSent}
+          collapsed={simSidebarCollapsed}
+          onToggleCollapsed={() => setSimSidebarCollapsed(v => !v)}
         />
       )}
 
@@ -184,7 +235,7 @@ function App() {
           ref={canvasRef}
           devices={devices}
           links={links}
-          readOnly={appMode === AppMode.SIMULATE}
+          simMode={appMode === AppMode.SIMULATE}
           pingArmed={simPingArmed}
           addingLinkState={addingLinkState}
           sourceDeviceId={sourceDevice}
@@ -207,15 +258,44 @@ function App() {
           simSpeed={simSpeed}
           simPaused={simState === 'paused'}
         />
+        {appMode === AppMode.SIMULATE && (
+          <SimPanelToggles active={simPanel} onToggle={handleToggleSimPanel} />
+        )}
       </main>
 
-      {/* Device details side panel (BUILD mode) */}
       {selectedDeviceId !== null && (
         <DeviceDetailsPanel
           device={selectedDevice}
           onClose={handleCloseConfig}
           onSave={saveDeviceConfig}
           onDelete={requestDeleteDevice}
+          showSimTable={appMode === AppMode.SIMULATE}
+          simTable={simTables[selectedDeviceId] ?? null}
+        />
+      )}
+
+      {appMode === AppMode.SIMULATE && simPanel === 'logs' && (
+        <SimulationLogPanel lines={simLog} onClose={() => handleToggleSimPanel('logs')} />
+      )}
+
+      {appMode === AppMode.SIMULATE && simPanel === 'stats' && (
+        <SimulationStatsPanel
+          onClose={() => handleToggleSimPanel('stats')}
+          statsSnap={statsSnap}
+          derived={derived}
+          algorithm={simAlgorithmLabel}
+          deviceCount={devices.length}
+          linkCount={links.length}
+          avgLinkDelay={avgLinkDelay}
+        />
+      )}
+
+      {appMode === AppMode.SIMULATE && simPanel === 'edit' && (
+        <SimulationEditPanel
+          onAddDevice={handleAddDevice}
+          addingLinkState={addingLinkState}
+          onToggleAddLink={handleToggleSimAddLink}
+          onClose={() => handleToggleSimPanel('edit')}
         />
       )}
 
@@ -262,7 +342,7 @@ function App() {
           }
           confirmLabel="Usuń"
           danger
-          onConfirm={confirmDeleteDevice}
+          onConfirm={handleConfirmDeleteDevice}
           onCancel={cancelDeleteDevice}
         />
       )}
