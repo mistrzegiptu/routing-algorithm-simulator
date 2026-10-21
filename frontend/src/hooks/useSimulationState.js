@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, startTransition } from 'react';
 import { useSimStats } from '../components/useSimStats.js';
 import { formatEvent } from '../utils/simEvents.js';
 
@@ -130,12 +130,12 @@ export function useSimulationState(devices, links) {
     const handleSimDeviceClick = useCallback((id) => {
         if (!simRunning) return;
         if (simPingSourceId === null) {
-            setSimPingSourceId(id);
+            startTransition(() => setSimPingSourceId(id));
         } else if (id === simPingSourceId) {
-            setSimPingSourceId(null);
+            startTransition(() => setSimPingSourceId(null));
         } else {
             simSidebarRef.current?.sendPing(simPingSourceId, id);
-            setSimPingSourceId(null);
+            startTransition(() => setSimPingSourceId(null));
         }
     }, [simRunning, simPingSourceId]);
 
