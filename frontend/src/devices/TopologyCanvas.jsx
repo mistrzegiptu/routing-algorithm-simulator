@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { memo, useEffect, useMemo, useCallback, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -22,6 +22,15 @@ import './TopologyCanvas.css';
 
 const nodeTypes = { device: DeviceNode };
 const edgeTypes = { link: LinkEdge };
+const PRO_OPTIONS = { hideAttribution: true };
+const FIT_VIEW_OPTIONS = { padding: 0.4, maxZoom: 1.2 };
+const MINIMAP_STYLE = { background: 'var(--bg-panel-2)', border: '1px solid var(--border)' };
+const minimapNodeColor = (n) => (n.data?.device?.type === 'router' ? '#f0a23b' : '#56b6ff');
+
+function sameNodeData(a, b) {
+  return a.device === b.device && a.linking === b.linking && a.isSource === b.isSource
+    && a.showIp === b.showIp && a.onRequestDelete === b.onRequestDelete;
+}
 
 const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   devices,
@@ -47,7 +56,7 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   onPingAnimationComplete = null,
   // Simulation packet animation
   simActive = false,
-  simSegments = [],
+  simSegments,
   simSpeed = 1,
   simPaused = false,
 }, ref) {
@@ -86,12 +95,9 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
   useEffect(() => {
     setNodes((prev) => {
       const prevById = new Map(prev.map((n) => [n.id, n]));
-      return devices.map((d) => ({
-        ...prevById.get(String(d.id)),
-        id: String(d.id),
-        type: 'device',
-        position: { x: d.x, y: d.y },
-        data: {
+      return devices.map((d) => {
+        const previous = prevById.get(String(d.id));
+        const data = {
           device: d,
           // Clickable affordance (pointer + hover ring): link/ping picking, or a
           // running simulation waiting for ping clicks.
@@ -99,8 +105,12 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
           isSource: d.id === sourceDeviceId || d.id === pingSourceId,
           showIp: showInterfaceIps,
           onRequestDelete: onRequestDeleteDevice,
-        },
-      }));
+        };
+        if (previous && previous.position.x === d.x && previous.position.y === d.y && sameNodeData(previous.data, data)) {
+          return previous;
+        }
+        return { ...previous, id: String(d.id), type: 'device', position: { x: d.x, y: d.y }, data };
+      });
     });
   }, [devices, isPicking, sourceDeviceId, pingSourceId, showInterfaceIps, onRequestDeleteDevice, setNodes]);
 
@@ -174,18 +184,18 @@ const TopologyCanvasInner = forwardRef(function TopologyCanvasInner({
         nodesConnectable={false}
         nodesDraggable={!simMode || !pingArmed}
         elementsSelectable={!isPicking}
-        proOptions={{ hideAttribution: true }}
+        proOptions={PRO_OPTIONS}
         fitView
-        fitViewOptions={{ padding: 0.4, maxZoom: 1.2 }}
+        fitViewOptions={FIT_VIEW_OPTIONS}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} color="#2d3445" />
         <Controls showInteractive={false} />
         <MiniMap
           pannable
           zoomable
-          nodeColor={(n) => (n.data?.device?.type === 'router' ? '#f0a23b' : '#56b6ff')}
+          nodeColor={minimapNodeColor}
           maskColor="rgba(8, 10, 16, 0.7)"
-          style={{ background: 'var(--bg-panel-2)', border: '1px solid var(--border)' }}
+          style={MINIMAP_STYLE}
         />
 
         {/* Ping animation overlay rendered inside ReactFlow viewport */}
@@ -215,4 +225,4 @@ const TopologyCanvas = forwardRef(function TopologyCanvas(props, ref) {
   );
 });
 
-export default TopologyCanvas;
+export default memo(TopologyCanvas);

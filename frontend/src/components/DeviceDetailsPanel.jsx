@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { getRouteTable, addRoute, deleteRoute } from "../api/device_api";
 import { usePanelWidth } from "../hooks/usePanelWidth.js";
 import SimRoutingTable from "./SimRoutingTable.jsx";
 import PanelResizer from "./PanelResizer.jsx";
 import "./DeviceDetailsPanel.css";
 
-export default function DeviceDetailsPanel({device, onClose, onSave, onDelete, showSimTable = false, simTable = null}) {
+function DeviceDetailsPanel({device, onClose, onSave, onDelete, showSimTable = false, simTable = null}) {
     const { width, handleProps } = usePanelWidth("panel-width:device", 350);
     const [name, setName] = useState("");
     const [ports, setPorts] = useState([]);
@@ -228,3 +228,5 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete, s
         </aside>
     );
 }
+
+export default memo(DeviceDetailsPanel);

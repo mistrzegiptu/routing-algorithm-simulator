@@ -47,6 +47,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     onSimReset,
     onSimFinished,
     onPingSent,
+    eventCount,
     collapsed,
     onToggleCollapsed,
   },
@@ -60,7 +61,6 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState(null);
   const [finished, setFinished] = useState(null);
-  const [eventCount, setEventCount] = useState(0);
 
   const socketRef = useRef(null);
 
@@ -100,10 +100,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   const ensureSocket = async () => {
     if (socketRef.current?.isOpen) return socketRef.current;
     const socket = new SimulationSocket({
-      onEvent: (ev) => {
-        setEventCount((n) => n + 1);
-        callbacksRef.current.onSimEvent?.(ev);
-      },
+      onEvent: (ev) => callbacksRef.current.onSimEvent?.(ev),
       onStatus: (msg) => applyStatus(msg.state),
       onFinished: (msg) => {
         setFinished(msg);
@@ -132,7 +129,6 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
   const handleStart = async () => {
     setErrorMsg(null);
     setFinished(null);
-    setEventCount(0);
     onSimReset?.();
     try {
       const socket = await ensureSocket();

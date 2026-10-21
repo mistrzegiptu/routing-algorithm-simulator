@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import SidePanel from "./SidePanel.jsx";
 import "./SimulationLogPanel.css";
 
@@ -8,14 +8,23 @@ const LEGEND = [
   { color: "#f0a23b", label: "Pakiet kontrolny" },
 ];
 
-export default function SimulationLogPanel({ lines, onClose }) {
+const LogBlock = memo(function LogBlock({ lines }) {
+  return lines.map((line) => (
+    <span key={line.id} className={`sim-log__line ${line.tone ? `sim-log__line--${line.tone}` : ""}`}>
+      {line.text}
+    </span>
+  ));
+});
+
+function SimulationLogPanel({ blocks, onClose }) {
   const listRef = useRef(null);
   const followRef = useRef(true);
+  const count = blocks.reduce((sum, block) => sum + block.length, 0);
 
   useEffect(() => {
     const el = listRef.current;
     if (el && followRef.current) el.scrollTop = el.scrollHeight;
-  }, [lines]);
+  }, [blocks]);
 
   const handleScroll = () => {
     const el = listRef.current;
@@ -25,7 +34,7 @@ export default function SimulationLogPanel({ lines, onClose }) {
   return (
     <SidePanel
       title="Log zdarzeń"
-      subtitle={`Ostatnie ${lines.length} wpisów`}
+      subtitle={`Ostatnie ${count} wpisów`}
       onClose={onClose}
       className="sim-log-panel"
     >
@@ -38,15 +47,13 @@ export default function SimulationLogPanel({ lines, onClose }) {
         ))}
       </div>
       <div className="sim-log" ref={listRef} onScroll={handleScroll}>
-        {lines.length === 0 && (
+        {count === 0 && (
           <span className="sim-log__empty">Zdarzenia symulacji pojawią się tutaj…</span>
         )}
-        {lines.map((line) => (
-          <span key={line.id} className={`sim-log__line ${line.tone ? `sim-log__line--${line.tone}` : ""}`}>
-            {line.text}
-          </span>
-        ))}
+        {blocks.map((block) => <LogBlock key={block[0].id} lines={block} />)}
       </div>
     </SidePanel>
   );
 }
+
+export default memo(SimulationLogPanel);

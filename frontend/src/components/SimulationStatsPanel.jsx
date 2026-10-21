@@ -1,7 +1,8 @@
+import { memo } from "react";
 import SidePanel from "./SidePanel.jsx";
 import SimulationStats from "./SimulationStats.jsx";
 
-export default function SimulationStatsPanel({
+function SimulationStatsPanel({
   onClose,
   statsSnap,
   derived,
@@ -27,3 +28,5 @@ export default function SimulationStatsPanel({
     </SidePanel>
   );
 }
+
+export default memo(SimulationStatsPanel);

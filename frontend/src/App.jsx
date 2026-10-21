@@ -55,6 +55,7 @@ function App() {
     simSegments,
     simLog,
     simTables,
+    simEventCount,
     statsSnap,
     derived,
     recordPingSent,
@@ -144,14 +145,14 @@ function App() {
     });
   };
 
-  const handleSimDeviceSelection = (id) => {
+  const handleSimDeviceSelection = useCallback((id) => {
     if (addingLinkState !== AddingLinkState.NORMAL) {
       handleSelectDevice(id);
       return;
     }
     if (!simRunning) return;
     handleSimDeviceClick(id);
-  };
+  }, [addingLinkState, handleSelectDevice, simRunning, handleSimDeviceClick]);
 
   const handleToggleSimPing = () => {
     resetLinkSelection();
@@ -159,17 +160,22 @@ function App() {
     setSimPingSourceId(null);
   };
 
-  const handleToggleSimAddLink = () => {
+  const handleToggleSimAddLink = useCallback(() => {
     setSimPingArmed(false);
     setSimPingSourceId(null);
     addLinkHandler();
-  };
+  }, [addLinkHandler, setSimPingSourceId]);
 
-  const handleToggleSimPanel = (panel) => {
+  const handleToggleSimPanel = useCallback((panel) => {
     const next = simPanel === panel ? null : panel;
     if (simPanel === 'edit' && next !== 'edit') resetLinkSelection();
     setSimPanel(next);
-  };
+  }, [simPanel, resetLinkSelection]);
+
+  const closeSimPanel = useCallback(() => {
+    if (simPanel === 'edit') resetLinkSelection();
+    setSimPanel(null);
+  }, [simPanel, resetLinkSelection]);
 
   const handleConfirmDeleteDevice = async () => {
     const id = devicePendingDeletion;
@@ -225,6 +231,7 @@ function App() {
           onSimReset={handleSimReset}
           onSimFinished={handleSimFinished}
           onPingSent={recordPingSent}
+          eventCount={simEventCount}
           collapsed={simSidebarCollapsed}
           onToggleCollapsed={() => setSimSidebarCollapsed(v => !v)}
         />
@@ -254,7 +261,7 @@ function App() {
           pingAnimating={pingAnimating}
           onPingAnimationComplete={handlePingAnimationComplete}
           simActive={appMode === AppMode.SIMULATE && (simState === 'running' || simState === 'paused')}
-          simSegments={Object.values(simSegments)}
+          simSegments={simSegments}
           simSpeed={simSpeed}
           simPaused={simState === 'paused'}
         />
@@ -275,12 +282,12 @@ function App() {
       )}
 
       {appMode === AppMode.SIMULATE && simPanel === 'logs' && (
-        <SimulationLogPanel lines={simLog} onClose={() => handleToggleSimPanel('logs')} />
+        <SimulationLogPanel blocks={simLog} onClose={closeSimPanel} />
       )}
 
       {appMode === AppMode.SIMULATE && simPanel === 'stats' && (
         <SimulationStatsPanel
-          onClose={() => handleToggleSimPanel('stats')}
+          onClose={closeSimPanel}
           statsSnap={statsSnap}
           derived={derived}
           algorithm={simAlgorithmLabel}
@@ -295,7 +302,7 @@ function App() {
           onAddDevice={handleAddDevice}
           addingLinkState={addingLinkState}
           onToggleAddLink={handleToggleSimAddLink}
-          onClose={() => handleToggleSimPanel('edit')}
+          onClose={closeSimPanel}
         />
       )}
 

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import AddItemForm from "../devices/AddItemForm.jsx";
 import SidePanel from "./SidePanel.jsx";
 import { AddingLinkState, linkHint } from "../models/AddingLinkState.js";
@@ -5,7 +6,7 @@ import routerImg from "../../images/router.png";
 import computerImg from "../../images/computer.png";
 import "./Sidebar.css";
 
-export default function SimulationEditPanel({ onAddDevice, addingLinkState, onToggleAddLink, onClose }) {
+function SimulationEditPanel({ onAddDevice, addingLinkState, onToggleAddLink, onClose }) {
   const isLinking = addingLinkState !== AddingLinkState.NORMAL;
   const hint = linkHint(addingLinkState);
 
@@ -55,3 +56,5 @@ export default function SimulationEditPanel({ onAddDevice, addingLinkState, onTo
     </SidePanel>
   );
 }
+
+export default memo(SimulationEditPanel);
