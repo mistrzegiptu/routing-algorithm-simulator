@@ -56,8 +56,11 @@ class SimContext:
         """
         self._engine._transmit(node.id, packet, adj)
 
-    def send_control(self, node, protocol, payload, adj):
+    def send_control(self, node, protocol, payload, adj, summary=None):
         """Emit a control-plane packet (hello/LSA/DV...) to one neighbor."""
+        meta = {"payload": payload}
+        if summary:
+            meta["summary"] = summary
         packet = Packet(
             id=self._engine._next_packet_id(),
             kind=KIND_CONTROL,
@@ -65,7 +68,7 @@ class SimContext:
             src_id=node.id,
             dst_id=adj.neighbor_id,
             ttl=1,
-            meta={"payload": payload},
+            meta=meta,
         )
         self._engine._transmit(node.id, packet, adj)
 
@@ -120,6 +123,7 @@ class SimulationEngine:
         self._pending = []         # SimEvents produced by the current handler
         self._emitted = 0
         self._packet_seq = 0
+        self._in_flight = 0
         self._algo_state = {}
         self._ctx = SimContext(self)
 
@@ -143,6 +147,7 @@ class SimulationEngine:
         self.now = max(self.now, t)
 
         if isinstance(entry, _Arrival):
+            self._in_flight -= 1
             self._handle_arrival(entry)
         else:
             node = self.snapshot.node(entry.node_id)
@@ -163,6 +168,9 @@ class SimulationEngine:
 
     def summary(self):
         return {"sim_time": self.now, "events": self._emitted}
+
+    def has_traffic(self):
+        return self._in_flight > 0
 
     # ------------------------------------------------------- event dispatch
     def _handle_arrival(self, entry):
@@ -256,6 +264,9 @@ class SimulationEngine:
         icmp = packet.meta.get("icmp")
         if icmp:
             payload["icmp"] = icmp
+        summary = packet.meta.get("summary")
+        if summary:
+            payload["summary"] = summary
 
         self._emit(
             PACKET_SENT,
@@ -288,6 +299,8 @@ class SimulationEngine:
 
     # ----------------------------------------------------------- low level
     def _push(self, t, entry):
+        if isinstance(entry, _Arrival):
+            self._in_flight += 1
         heapq.heappush(self._queue, (t, self._push_seq, entry))
         self._push_seq += 1
 

@@ -22,6 +22,26 @@ class RoutingAlgorithm(ABC):
     display_name: str = ""            # label shown in the UI dropdown
     description: str = ""             # one Polish sentence for the UI
     requires_convergence: bool = False  # True → UI may show a convergence phase
+    option_specs: list = []
+    max_events: int | None = None
+
+    def __init__(self, options=None):
+        self.options = self.resolve_options(options)
+
+    @classmethod
+    def resolve_options(cls, given):
+        given = given or {}
+        resolved = {}
+        for spec in cls.option_specs:
+            value = given.get(spec["key"], spec["default"])
+            if spec["type"] == "bool":
+                valid = isinstance(value, bool)
+            elif spec["type"] == "choice":
+                valid = value in {choice["value"] for choice in spec["choices"]}
+            else:
+                valid = False
+            resolved[spec["key"]] = value if valid else spec["default"]
+        return resolved
 
     @classmethod
     def info(cls):
@@ -30,6 +50,7 @@ class RoutingAlgorithm(ABC):
             "display_name": cls.display_name or cls.name,
             "description": cls.description,
             "requires_convergence": cls.requires_convergence,
+            "options": [dict(spec) for spec in cls.option_specs],
         }
 
     # -- lifecycle hooks -----------------------------------------------------

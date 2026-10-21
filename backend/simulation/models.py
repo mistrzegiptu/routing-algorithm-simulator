@@ -25,3 +25,5 @@ class SimulationCommand(BaseModel):
     seed: Optional[int] = None
     source_id: Optional[int] = None
     target_id: Optional[int] = None
+    options: Optional[dict] = None
+    skip_idle: Optional[bool] = None

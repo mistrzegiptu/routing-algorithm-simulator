@@ -239,6 +239,33 @@ button {
     color: var(--text-dim);
 }
 
+.sim-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.sim-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sim-option--toggle {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.sim-option--toggle input {
+    margin: 0;
+    accent-color: var(--accent);
+}
+
 .sim-speed {
     display: flex;
     flex-direction: column;
