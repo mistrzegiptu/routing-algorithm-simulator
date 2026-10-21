@@ -24,7 +24,15 @@ export default function SimulationOverlay({ segments, speed, paused }) {
   const viewport = useViewport();
   const [dots, setDots] = useState([]);
   const clockRef = useRef(0);
-  const lastWallRef = useRef(null);
+  const segmentsRef = useRef(segments);
+  const speedRef = useRef(speed);
+  const pausedRef = useRef(paused);
+
+  useEffect(() => {
+    segmentsRef.current = segments;
+    speedRef.current = speed;
+    pausedRef.current = paused;
+  }, [segments, speed, paused]);
 
   const getCenter = useCallback((id) => {
     const node = getNode(String(id));
@@ -35,15 +43,15 @@ export default function SimulationOverlay({ segments, speed, paused }) {
   }, [getNode]);
 
   useEffect(() => {
-    lastWallRef.current = null;
     let raf = null;
+    let lastWall = null;
 
     const frame = (now) => {
-      if (lastWallRef.current == null) lastWallRef.current = now;
-      const dt = now - lastWallRef.current;
-      lastWallRef.current = now;
+      const dt = lastWall == null ? 0 : now - lastWall;
+      lastWall = now;
 
-      if (!paused) clockRef.current += dt * speed;
+      const segments = segmentsRef.current;
+      if (!pausedRef.current) clockRef.current += dt * speedRef.current;
       for (const s of segments) if (s.t_sent > clockRef.current) clockRef.current = s.t_sent;
       const clock = clockRef.current;
 
@@ -63,12 +71,12 @@ export default function SimulationOverlay({ segments, speed, paused }) {
         };
       }).filter(Boolean);
 
-      setDots(next);
+      setDots((prev) => (prev.length === 0 && next.length === 0 ? prev : next));
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => { if (raf) cancelAnimationFrame(raf); };
-  }, [segments, speed, paused, getCenter]);
+  }, [getCenter]);
 
   if (dots.length === 0) return null;
 

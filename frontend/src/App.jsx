@@ -121,6 +121,40 @@ function App() {
     setSimSummaryData(data);
   }, []);
 
+  const handleSimReset = useCallback(() => setSimSegments({}), []);
+
+  const handleSimEvent = useCallback((ev) => {
+    const id = ev.packet_id;
+    if (!id) return;
+    if (ev.type === 'packet_sent') {
+      // Flooding forwards the same packet_id over several links at once, so the
+      // link_id has to be part of the key or each copy overwrites the last one.
+      const key = `${id}:${ev.link_id}`;
+      const link = links.find(l => l.id === ev.link_id);
+      const delay = link?.delay ?? 10;
+      setSimSegments(prev => ({
+        ...prev,
+        [key]: {
+          key,
+          from_id: ev.from_id,
+          to_id: ev.to_id,
+          t_sent: ev.t,
+          t_recv: ev.t + delay,
+          kind: ev.kind,
+          icmp: ev.payload?.icmp,
+        },
+      }));
+    } else if (ev.type === 'packet_recv') {
+      const key = `${id}:${ev.link_id}`;
+      setSimSegments(prev => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  }, [links]);
+
   const handleSimDeviceSelection = (id) => {
     if (!simRunning) return;
     handleSimDeviceClick(id);
