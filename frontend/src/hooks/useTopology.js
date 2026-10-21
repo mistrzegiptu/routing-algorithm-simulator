@@ -182,12 +182,12 @@ export function useTopology(canvasRef) {
         }         
     }, []);
 
-    const handleAddDevice = (created) => {
+    const handleAddDevice = useCallback((created) => {
         setDevices(prev => {
             const coords = getNewCords(prev.length, canvasRef.current?.getSpawnPosition());
             return [...prev, { ...created, ...coords }];
         });
-    };
+    }, [canvasRef]);
 
     return {
         devices,

@@ -7,6 +7,7 @@ PACKET_DELIVERED = "packet_delivered"  # data packet reached its destination
 PACKET_DROPPED = "packet_dropped"    # TTL expired / algorithm gave up / dead end
 TABLE_UPDATE = "table_update"        # a node's learned routing table changed
 NODE_LOG = "node_log"                # free-text algorithm message for the UI log
+TOPOLOGY_CHANGE = "topology_change"  # the user edited the network while it runs
 
 KIND_DATA = "data"
 KIND_CONTROL = "control"

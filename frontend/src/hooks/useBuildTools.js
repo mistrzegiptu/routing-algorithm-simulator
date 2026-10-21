@@ -140,7 +140,7 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
             setAddingLinkState(AddingLinkState.SELECTING_DESTINATION);
         } else if (addingLinkState === AddingLinkState.SELECTING_DESTINATION) {
             if (id === sourceDevice) {
-                alert("Cannot select the same device as destination");
+                alert("Nie można połączyć urządzenia z samym sobą");
                 return;
             }
             saveLink({

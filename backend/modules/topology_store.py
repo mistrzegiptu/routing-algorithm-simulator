@@ -23,6 +23,13 @@ class TopologyStore:
     def find_link(self, link_id: int):
         return next((l for l in self.links if l.id == link_id), None)
 
+    async def sync_simulations(self):
+        for session in tuple(self.simulation_sessions):
+            try:
+                await session.sync_topology()
+            except Exception:
+                self.simulation_sessions.discard(session)
+
     def reserve_ip(self, ip: str):
         if ip in self.ip_pool:
             raise ValueError(f"IP address {ip} is already in use")

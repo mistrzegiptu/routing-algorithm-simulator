@@ -52,18 +52,44 @@ class SimLink:
     b: int
     port_a: int
     port_b: int
+    ip_a: str
+    mask_a: int
+    ip_b: str
+    mask_b: int
     delay: int
     bandwidth: int | None
     unit: str
     weight: int = 1
 
+    def other(self, node_id):
+        return self.b if node_id == self.a else self.a
+
+    def adjacency(self, node_id):
+        """The link seen from ``node_id`` — the same Adjacency neighbors() lists."""
+        if node_id == self.a:
+            local_port, local_ip, local_mask, neighbor_ip = self.port_a, self.ip_a, self.mask_a, self.ip_b
+        else:
+            local_port, local_ip, local_mask, neighbor_ip = self.port_b, self.ip_b, self.mask_b, self.ip_a
+        return Adjacency(
+            link_id=self.id, neighbor_id=self.other(node_id),
+            local_port=local_port, local_ip=local_ip, local_mask=local_mask,
+            neighbor_ip=neighbor_ip, delay=self.delay, bandwidth=self.bandwidth, weight=self.weight,
+        )
+
+    def wiring(self):
+        return (self.a, self.b, self.ip_a, self.mask_a, self.ip_b, self.mask_b)
+
+    def params(self):
+        return {"delay": self.delay, "bandwidth": self.bandwidth, "unit": self.unit, "weight": self.weight}
+
 
 class NetworkSnapshot:
-    """Immutable copy of the topology the simulation runs on.
+    """Copy of the topology the simulation runs on.
 
-    Built once per run from the live devices_db/links_db; the simulation never
-    reads or writes the real model afterwards, so user-configured devices and
-    static routes stay untouched (design decision #3).
+    Built from the live devices_db/links_db when a run starts and rebuilt after
+    every edit made while it runs (SimulationEngine.apply_topology diffs the
+    two). The simulation never writes back to the real model, so
+    user-configured devices and static routes stay untouched (design decision #3).
     """
 
     def __init__(self, nodes, links, adjacency):
@@ -78,9 +104,6 @@ class NetworkSnapshot:
             nodes[d.id] = SimNode(
                 id=d.id,
                 name=d.name,
-                # NOTE: topologies rebuilt by import_topology come back as base
-                # Device instances, so is_router degrades to False there
-                # (known serialize.py limitation, see design doc §4).
                 is_router=bool(getattr(d, "dynamic_ports", False)),
                 ports=[(p.ip, p.mask) for p in d.ports],
                 routing_table=[
@@ -99,25 +122,17 @@ class NetworkSnapshot:
             if l.port_a_num >= len(node_a.ports) or l.port_b_num >= len(node_b.ports):
                 continue
 
-            weight = getattr(l, "weight", 1)
-            links[l.id] = SimLink(
-                id=l.id, a=l.device_a, b=l.device_b,
-                port_a=l.port_a_num, port_b=l.port_b_num,
-                delay=l.delay, bandwidth=l.bandwidth, unit=l.unit, weight=weight,
-            )
-
             ip_a, mask_a = node_a.ports[l.port_a_num]
             ip_b, mask_b = node_b.ports[l.port_b_num]
-            adjacency[l.device_a].append(Adjacency(
-                link_id=l.id, neighbor_id=l.device_b,
-                local_port=l.port_a_num, local_ip=ip_a, local_mask=mask_a,
-                neighbor_ip=ip_b, delay=l.delay, bandwidth=l.bandwidth, weight=weight,
-            ))
-            adjacency[l.device_b].append(Adjacency(
-                link_id=l.id, neighbor_id=l.device_a,
-                local_port=l.port_b_num, local_ip=ip_b, local_mask=mask_b,
-                neighbor_ip=ip_a, delay=l.delay, bandwidth=l.bandwidth, weight=weight,
-            ))
+            link = SimLink(
+                id=l.id, a=l.device_a, b=l.device_b,
+                port_a=l.port_a_num, port_b=l.port_b_num,
+                ip_a=ip_a, mask_a=mask_a, ip_b=ip_b, mask_b=mask_b,
+                delay=l.delay, bandwidth=l.bandwidth, unit=l.unit, weight=l.weight,
+            )
+            links[l.id] = link
+            adjacency[l.device_a].append(link.adjacency(l.device_a))
+            adjacency[l.device_b].append(link.adjacency(l.device_b))
 
         return cls(nodes, links, adjacency)
 
@@ -142,15 +157,3 @@ class NetworkSnapshot:
             if ip:
                 return ip
         return None
-
-    def disconnect_link(self, link_id):
-        link = self.links.pop(link_id, None)
-        if not link:
-            return False
-
-        for node_id in (link.a, link.b):
-            self._adjacency[node_id] = [
-                adjacency for adjacency in self._adjacency[node_id]
-                if adjacency.link_id != link_id
-            ]
-        return True

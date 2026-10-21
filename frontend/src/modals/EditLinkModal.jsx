@@ -20,10 +20,10 @@ export default function EditLinkModal({
     const handleSubmit = (e) => {
         e.preventDefault();
         onSave({
-            bandwidth: bandwidth ? parseInt(bandwidth, 10) : null,
+            bandwidth: bandwidth === "" ? null : parseInt(bandwidth, 10),
             unit,
-            delay: delay ? parseInt(delay, 10) : 10,
-            weight: weight ? parseInt(weight, 10) : 1,
+            delay: delay === "" ? 10 : parseInt(delay, 10),
+            weight: weight === "" ? 1 : parseInt(weight, 10),
         });
     };
 

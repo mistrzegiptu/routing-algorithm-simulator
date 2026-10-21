@@ -1,4 +1,4 @@
-const URL = "http://localhost:5000/api";
+const URL = "/api";
 
 export async function createDevice({ name, type }) {
     const payload = { type };

@@ -18,7 +18,7 @@ class LinkModel(BaseModel):
     device_b: int
     port_a_num: int
     port_b_num: int
-    bandwidth: int
+    bandwidth: int | None = None
     delay: int
     unit: str
     weight: int = 1
@@ -47,34 +47,43 @@ class ExportedModel(BaseModel):
 
 
 def import_topology(json_content, store):
-    store.devices.clear()
-    store.links.clear()
-    store.ip_pool.clear()
-
     topology = ExportedModel.model_validate(json_content)
 
-    max_device_id = 0
-    max_link_id = 0
-
+    devices = {}
+    used_ips = set()
     for device in topology.devices_db:
+        if device.id in devices:
+            raise ValueError(f"Device id {device.id} is used more than once")
         if device.type == "router":
             new_device = Router(id=device.id, name=device.name, port_number=0)
         else:
             new_device = Computer(id=device.id, name=device.name, port_number=0)
 
         for port in device.ports:
+            if port.ip in used_ips:
+                raise ValueError(f"IP address {port.ip} is already in use")
+            used_ips.add(port.ip)
             new_device.add_port(port.ip, port.mask)
-            store.reserve_ip(port.ip)
 
         for route in device.routing_table:
             new_device.add_route(device_ip=route.dest, mask=route.mask, next_hop=route.next_hop, route_type=route.entry_type)
 
-        if new_device.id > max_device_id:
-            max_device_id = new_device.id
+        devices[new_device.id] = new_device
 
-        store.devices.append(new_device)
-
+    links = {}
+    used_ports = set()
     for link in topology.links_db:
+        dev_a = devices.get(link.device_a)
+        dev_b = devices.get(link.device_b)
+        if dev_a is None or dev_b is None or dev_a is dev_b:
+            raise ValueError(f"Link {link.id} must connect two existing devices")
+        if link.id in links:
+            raise ValueError(f"Link id {link.id} is used more than once")
+        for device, port_num in ((dev_a, link.port_a_num), (dev_b, link.port_b_num)):
+            if not 0 <= port_num < len(device.ports) or (device.id, port_num) in used_ports:
+                raise ValueError(f"Link {link.id} uses a missing or already connected interface of {device.name}")
+            used_ports.add((device.id, port_num))
+
         new_link = Link(
             id=link.id,
             device_a=link.device_a,
@@ -86,21 +95,16 @@ def import_topology(json_content, store):
             unit=link.unit,
             weight=link.weight,
         )
+        dev_a.links.append(new_link)
+        dev_b.links.append(new_link)
+        links[new_link.id] = new_link
 
-        if new_link.id > max_link_id:
-            max_link_id = new_link.id
-
-        store.links.append(new_link)
-
-        dev_a = next((d for d in store.devices if d.id == link.device_a), None)
-        dev_b = next((d for d in store.devices if d.id == link.device_b), None)
-
-        if dev_a is not None and dev_b is not None:
-            dev_a.links.append(new_link)
-            dev_b.links.append(new_link)
-
-    store._device_seq = max_device_id + 1
-    store._link_seq = max_link_id + 1
+    store.devices[:] = devices.values()
+    store.links[:] = links.values()
+    store.ip_pool.clear()
+    store.ip_pool.update(used_ips)
+    store._device_seq = max(devices, default=0) + 1
+    store._link_seq = max(links, default=0) + 1
 
 def export_topology(store):
     devices = []

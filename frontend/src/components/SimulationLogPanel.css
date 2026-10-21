@@ -1,0 +1,56 @@
+.sim-log-panel .side-panel__content {
+    overflow: hidden;
+}
+
+.sim-log {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+}
+
+.sim-log__empty {
+    color: var(--text-faint);
+}
+
+.sim-log__line--good {
+    color: var(--link);
+}
+
+.sim-log__line--bad {
+    color: var(--danger);
+}
+
+.sim-log__line--topo {
+    color: var(--accent);
+}
+
+.sim-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-faint);
+}
+
+.sim-legend__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sim-legend__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
+}

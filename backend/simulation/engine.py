@@ -12,6 +12,7 @@ from .events import (
     PACKET_RECV,
     PACKET_SENT,
     TABLE_UPDATE,
+    TOPOLOGY_CHANGE,
     SimEvent,
 )
 from .packet import Packet
@@ -47,6 +48,10 @@ class SimContext:
     def rng(self):
         """Seeded RNG — the only randomness source, so runs are replayable."""
         return self._engine.rng
+
+    def name(self, node_id):
+        """Display name of a node, also of one removed earlier in the run."""
+        return self._engine._names.get(node_id, f"#{node_id}")
 
     def forward(self, node, packet, adj):
         """Send ``packet`` out of ``node`` over adjacency ``adj``.
@@ -100,7 +105,8 @@ class SimulationEngine:
         peek_time()              -> sim time of the next queued event, or None
         advance()                -> process exactly one queue entry, return the
                                     SimEvents it produced
-        inject_ping(src, dst, t) -> drop an ICMP request into the running world
+        inject_packet(src, t, p) -> drop a packet (e.g. ICMP request) into the world
+        apply_topology(snap, t)  -> switch to the network as the user edited it
 
     The session layer decides *when* to call advance() (mapping sim time to
     wall time / speed); tests just loop advance() to fast-forward. Delivered
@@ -125,6 +131,7 @@ class SimulationEngine:
         self._packet_seq = 0
         self._in_flight = 0
         self._algo_state = {}
+        self._names = {node.id: node.name for node in snapshot.nodes.values()}
         self._ctx = SimContext(self)
 
     # ----------------------------------------------------------- public API
@@ -165,6 +172,60 @@ class SimulationEngine:
             packet.meta.setdefault("ping_id", packet.id)
         self._push(curr_time, _Arrival(packet, source_id, None, None))
         return packet.id
+
+    def apply_topology(self, snapshot, at=None):
+        """Switch to an edited copy of the network mid-run; returns its events.
+
+        Links are matched by id. One whose endpoints or interface addresses
+        changed goes down and comes back up; one whose delay, bandwidth or
+        weight changed goes to on_link_changed. Packets in flight on a link
+        that went down are dropped, and so is everything queued for a
+        removed device. ``at`` is the session's current sim time.
+        """
+        if at is not None:
+            horizon = self._queue[0][0] if self._queue else at
+            self.now = max(self.now, min(at, horizon))
+
+        old = self.snapshot
+        down = [
+            link for link_id, link in old.links.items()
+            if link_id not in snapshot.links or snapshot.links[link_id].wiring() != link.wiring()
+        ]
+        up = [
+            link for link_id, link in snapshot.links.items()
+            if link_id not in old.links or old.links[link_id].wiring() != link.wiring()
+        ]
+        changed = [
+            (link, old.links[link_id]) for link_id, link in snapshot.links.items()
+            if link_id in old.links
+            and old.links[link_id].wiring() == link.wiring()
+            and old.links[link_id].params() != link.params()
+        ]
+        removed = [node for node_id, node in old.nodes.items() if node_id not in snapshot.nodes]
+        added = [node for node_id, node in snapshot.nodes.items() if node_id not in old.nodes]
+
+        self.snapshot = snapshot
+        self._names.update((node.id, node.name) for node in snapshot.nodes.values())
+        self._purge({link.id for link in down}, {node.id for node in removed})
+
+        for link in down:
+            self._link_event("link_down", link)
+            self.algorithm.on_link_down(self._ctx, link)
+        for node in removed:
+            self._node_event("node_removed", node)
+            self.algorithm.on_node_removed(self._ctx, node)
+            self._algo_state.pop(node.id, None)
+        for node in added:
+            self._node_event("node_added", node)
+            self.algorithm.on_node_added(self._ctx, node)
+        for link in up:
+            self._link_event("link_up", link)
+            self.algorithm.on_link_up(self._ctx, link)
+        for link, previous in changed:
+            self._link_event("link_changed", link, before=previous.params(), after=link.params())
+            self.algorithm.on_link_changed(self._ctx, link, previous)
+
+        return self._collect()
 
     def summary(self):
         return {"sim_time": self.now, "events": self._emitted}
@@ -260,7 +321,7 @@ class SimulationEngine:
                 return
         packet.meta["prev_node"] = node_id
 
-        payload = {"ttl": packet.ttl}
+        payload = {"ttl": packet.ttl, "delay": adj.delay}
         icmp = packet.meta.get("icmp")
         if icmp:
             payload["icmp"] = icmp
@@ -316,33 +377,50 @@ class SimulationEngine:
         self._packet_seq += 1
         return f"p{self._packet_seq}"
 
-    def disconnect_link(self, link_id):
-        if not self.snapshot.disconnect_link(link_id):
+    def _purge(self, link_ids, node_ids):
+        if not link_ids and not node_ids:
             return
-
         retained = []
-
-        for item in self._queue:
-            arrival = item[-1]
-            if isinstance(arrival, _Arrival) and arrival.link_id == link_id:
-                payload = {"reason": "link_disconnected"}
-                icmp = arrival.packet.meta.get("icmp")
-                if icmp:
-                    payload["icmp"] = icmp
-
-                self._emit(
-                    PACKET_DROPPED,
-                    kind=arrival.packet.kind,
-                    packet_id=arrival.packet.id,
-                    protocol=arrival.packet.protocol,
-                    from_id=arrival.from_id,
-                    to_id=arrival.node_id,
-                    link_id=link_id,
-                    payload=payload,
-                )
-            else:
-                retained.append(item)
-
+        for item in sorted(self._queue):
+            entry = item[-1]
+            if isinstance(entry, _Arrival):
+                if entry.link_id in link_ids:
+                    self._in_flight -= 1
+                    self._drop_in_flight(entry, "link_disconnected")
+                    continue
+                if entry.node_id in node_ids:
+                    self._in_flight -= 1
+                    self._drop(entry.node_id, entry.packet, "node_removed")
+                    continue
+            elif entry.node_id in node_ids:
+                continue
+            retained.append(item)
         self._queue = retained
-        heapq.heapify(self._queue)
-        return self._collect()
+
+    def _drop_in_flight(self, arrival, reason):
+        payload = {"reason": reason}
+        icmp = arrival.packet.meta.get("icmp")
+        if icmp:
+            payload["icmp"] = icmp
+        self._emit(
+            PACKET_DROPPED,
+            kind=arrival.packet.kind,
+            packet_id=arrival.packet.id,
+            protocol=arrival.packet.protocol,
+            from_id=arrival.from_id,
+            to_id=arrival.node_id,
+            link_id=arrival.link_id,
+            payload=payload,
+        )
+
+    def _link_event(self, change, link, **details):
+        self._emit(
+            TOPOLOGY_CHANGE,
+            from_id=link.a,
+            to_id=link.b,
+            link_id=link.id,
+            payload={"change": change, "a_name": self._names.get(link.a), "b_name": self._names.get(link.b), **details},
+        )
+
+    def _node_event(self, change, node):
+        self._emit(TOPOLOGY_CHANGE, node_id=node.id, payload={"change": change, "name": node.name})

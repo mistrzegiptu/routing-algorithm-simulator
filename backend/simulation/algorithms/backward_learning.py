@@ -22,10 +22,10 @@ class BackwardLearning(RoutingAlgorithm):
         rows = [
             {
                 "dest_id": dest_id,
-                "dest_name": (ctx.net.node(dest_id) or type("", (), {"name": f"?{dest_id}"})).name,
+                "dest_name": ctx.name(dest_id),
                 "cost": cost,
                 "next_hop_id": nh_id,
-                "next_hop_name": (ctx.net.node(nh_id) or type("", (), {"name": f"?{nh_id}"})).name,
+                "next_hop_name": ctx.name(nh_id),
             }
             for dest_id, (cost, nh_id) in sorted(table.items())
         ]
@@ -61,6 +61,28 @@ class BackwardLearning(RoutingAlgorithm):
     def on_deliver(self, ctx, node, packet):
         table, _ = self._ensure_state(ctx, node)
         self._learn(ctx, node, packet, table)
+
+    def on_link_down(self, ctx, link):
+        for node_id in (link.a, link.b):
+            node = ctx.net.node(node_id)
+            neighbor_id = link.other(node_id)
+            if node is None or self._find_adj_to(ctx, node_id, neighbor_id) is not None:
+                continue
+            table, _ = self._ensure_state(ctx, node)
+            stale = [dest_id for dest_id, (_, nh_id) in table.items() if nh_id == neighbor_id]
+            if not stale:
+                continue
+            for dest_id in stale:
+                del table[dest_id]
+            ctx.log(node, f"Łącze do {ctx.name(neighbor_id)} zniknęło — zapomniano trasy: {len(stale)}")
+            self._publish_table(ctx, node, table)
+
+    def on_node_removed(self, ctx, node):
+        for other in ctx.net.nodes.values():
+            table, _ = self._ensure_state(ctx, other)
+            if node.id in table:
+                del table[node.id]
+                self._publish_table(ctx, other, table)
 
     def on_packet(self, ctx, node, packet):
         if packet.kind == "control":

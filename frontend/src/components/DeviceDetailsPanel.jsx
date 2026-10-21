@@ -1,8 +1,12 @@
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { getRouteTable, addRoute, deleteRoute } from "../api/device_api";
+import { usePanelWidth } from "../hooks/usePanelWidth.js";
+import SimRoutingTable from "./SimRoutingTable.jsx";
+import PanelResizer from "./PanelResizer.jsx";
 import "./DeviceDetailsPanel.css";
 
-export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) {
+function DeviceDetailsPanel({device, onClose, onSave, onDelete, showSimTable = false, simTable = null}) {
+    const { width, handleProps } = usePanelWidth("panel-width:device", 350);
     const [name, setName] = useState("");
     const [ports, setPorts] = useState([]);
     const [routeTable, setRouteTable] = useState([]);
@@ -92,7 +96,8 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
     }
 
     return (
-        <aside className="right-panel">
+        <aside className="right-panel" style={{ width }}>
+        <PanelResizer {...handleProps} />
         <header className="right-panel-header">
             <div>
             <h2>{device.name}</h2>
@@ -108,7 +113,14 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
         </header>
 
         <div className="right-panel-content">
-            
+
+            {showSimTable && (
+                <section className="panel-section">
+                    <h3>Tablica routingu w symulacji</h3>
+                    <SimRoutingTable table={simTable} />
+                </section>
+            )}
+
             {/* --- SEKCJA 1: FORMULARZ --- */}
             <section className="panel-section">
             <h3>Konfiguracja portów</h3>
@@ -145,12 +157,10 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
             </form>
             </section>
 
-            <hr />
-
             {/* --- SEKCJA 2: TABLICA ROUTINGU --- */}
             <section className="panel-section">
-            <h3>Tablica Routingu</h3>
-            
+            <h3>{showSimTable ? "Trasy skonfigurowane" : "Tablica Routingu"}</h3>
+
             {routeTableLoading ? (
                 <p className="loading-text">Pobieranie tras z serwera...</p>
             ) : (
@@ -160,12 +170,13 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
                     <th>Sieć docelowa</th>
                     <th>Next Hop</th>
                     <th>Typ</th>
+                    <th />
                     </tr>
                 </thead>
                 <tbody>
                     {routeTable.length === 0 ? (
                     <tr>
-                        <td colSpan="3" className="empty-text">Brak wpisów w tablicy.</td>
+                        <td colSpan="4" className="empty-text">Brak wpisów w tablicy.</td>
                     </tr>
                     ) : (
                     routeTable.map((route, idx) => (
@@ -202,12 +213,7 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
             </form>
             </section>
 
-            <hr />
-
-            {/* --- SEKCJA 3: STREFA USUWANIA --- */}
-            <section className="panel-section danger-zone">
-            <h3>Strefa usuwania</h3>
-            <p className="empty-text">Usunięcie urządzenia skasuje też wszystkie jego połączenia.</p>
+            <section className="panel-section">
             <button
                 type="button"
                 className="btn-danger"
@@ -215,9 +221,12 @@ export default function DeviceDetailsPanel({device, onClose, onSave, onDelete}) 
             >
                 🗑️ Usuń urządzenie
             </button>
+            <p className="empty-text delete-note">Usunięcie urządzenia skasuje też wszystkie jego połączenia.</p>
             </section>
 
         </div>
         </aside>
     );
 }
+
+export default memo(DeviceDetailsPanel);

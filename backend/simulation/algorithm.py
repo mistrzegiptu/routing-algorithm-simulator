@@ -82,3 +82,29 @@ class RoutingAlgorithm(ABC):
         backward learning — override this hook to update their tables from
         packets that would otherwise be invisible to the algorithm.
         """
+
+    # -- topology edits made while the simulation runs -----------------------
+    def on_node_added(self, ctx, node):
+        """A device appeared (its links follow as on_link_up)."""
+
+    def on_node_removed(self, ctx, node):
+        """A device disappeared; its links already went through on_link_down.
+
+        ``node`` is no longer in ``ctx.net`` and its ``ctx.state`` is discarded
+        right after this hook.
+        """
+
+    def on_link_up(self, ctx, link):
+        """A link appeared — a new one, or one whose interface addresses changed.
+
+        ``link.adjacency(node_id)`` is the link seen from either end.
+        """
+
+    def on_link_down(self, ctx, link):
+        """A link disappeared — removed, its device removed, or re-addressed.
+
+        Packets that were in flight on it are already dropped.
+        """
+
+    def on_link_changed(self, ctx, link, previous):
+        """Delay, bandwidth or weight of a link changed; its addressing did not."""

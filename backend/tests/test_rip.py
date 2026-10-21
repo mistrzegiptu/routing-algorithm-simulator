@@ -224,10 +224,13 @@ def test_rip_options_fall_back_to_rfc_defaults():
         "split_horizon": "poisoned_reverse",
         "triggered_updates": True,
         "hold_down": True,
+        "failure_detection": "immediate",
     }
 
     info = next(a for a in list_algorithms() if a["name"] == "rip_v2")
-    assert [option["key"] for option in info["options"]] == ["split_horizon", "triggered_updates", "hold_down"]
+    assert [option["key"] for option in info["options"]] == [
+        "split_horizon", "triggered_updates", "hold_down", "failure_detection",
+    ]
 
 
 def test_rip_control_packets_carry_a_summary():
@@ -250,3 +253,92 @@ def test_shared_subnet_is_reported():
 
     warnings = [e for e in events if e.type == "node_log" and e.node_id == r1.id]
     assert warnings and "128.0.0.0/24" in warnings[0].payload["message"]
+
+
+def resync(engine, devices, links, at):
+    return engine.apply_topology(NetworkSnapshot.from_db(devices, links), at=at)
+
+
+def square():
+    routers = [Router(id=i + 1, name=f"R{i + 1}") for i in range(4)]
+    links = [
+        connect(routers[i], routers[(i + 1) % 4], f"10.0.{i}.1", f"10.0.{i}.2", link_id=i + 1)
+        for i in range(4)
+    ]
+    return routers, links
+
+
+def run_with_removed_link(failure_detection):
+    routers, links = chain(5)
+    engine = rip_engine(routers, links, failure_detection=failure_detection)
+    run_until(engine, 60_000)
+    links.pop(2)
+    resync(engine, routers, links, at=60_000)
+    return routers, engine, run_until(engine, 600_000)
+
+
+def test_removed_link_is_detected_immediately_by_default():
+    routers, engine, events = run_with_removed_link("immediate")
+
+    timeline = history(events, routers[0], "10.0.3.0/30")
+    poisoned_at = next(t for t, metric, _ in timeline if metric == INFINITY)
+    assert poisoned_at < 70_000
+    assert "10.0.2.0/30" not in table(engine, routers[0])
+    assert "10.0.3.0/30" not in table(engine, routers[0])
+
+
+def test_silent_link_failure_waits_for_the_route_timeout():
+    routers, engine, events = run_with_removed_link("timeout")
+
+    timeline = history(events, routers[0], "10.0.3.0/30")
+    poisoned_at = next(t for t, metric, _ in timeline if metric == INFINITY)
+    assert poisoned_at >= 210_000
+
+
+def test_traffic_reroutes_around_a_removed_link():
+    routers, links = square()
+    engine = rip_engine(routers, links)
+    run_until(engine, 60_000)
+    assert table(engine, routers[0])["10.0.1.0/30"].next_hop_id == routers[1].id
+
+    links.pop(0)
+    resync(engine, routers, links, at=60_000)
+    run_until(engine, 100_000)
+
+    route = table(engine, routers[0])["10.0.1.0/30"]
+    assert (route.metric, route.next_hop_id) == (3, routers[3].id)
+
+
+def test_router_added_mid_run_joins_the_network_quickly():
+    routers, links = chain(3)
+    engine = rip_engine(routers, links)
+    run_until(engine, 60_000)
+
+    r4 = Router(id=4, name="R4")
+    routers.append(r4)
+    resync(engine, routers, links, at=60_000)
+    links.append(connect(routers[2], r4, "10.0.2.1", "10.0.2.2", link_id=3))
+    resync(engine, routers, links, at=61_000)
+    run_until(engine, 75_000)
+
+    assert table(engine, routers[0])["10.0.2.0/30"].metric == 3
+    assert table(engine, r4)["10.0.0.0/30"].metric == 3
+
+
+def test_readdressed_link_is_announced_and_its_old_subnet_withdrawn():
+    routers, links = chain(3)
+    engine = rip_engine(routers, links)
+    run_until(engine, 60_000)
+
+    r1, r2, r3 = routers
+    r1.edit_port(r1.ports[0], new_ip="10.0.9.1")
+    r2.edit_port(r2.ports[0], new_ip="10.0.9.2")
+    resync(engine, routers, links, at=60_000)
+    run_until(engine, 70_000)
+
+    routes = table(engine, r3)
+    assert routes["10.0.9.0/30"].metric == 2
+    assert not routes["10.0.0.0/30"].reachable
+
+    run_until(engine, 400_000)
+    assert "10.0.0.0/30" not in table(engine, r3)

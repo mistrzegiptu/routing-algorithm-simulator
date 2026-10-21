@@ -7,8 +7,11 @@ i konwergentny (z pakietami kontrolnymi, jak RIP/OSPF). Architektura i decyzje:
 ---
 ## 1. Wielki obraz w trzech zdaniach
 
-1. Przy starcie symulacji backend robi **zamrożoną kopię topologii** (`NetworkSnapshot`)
-   i tworzy **silnik zdarzeniowy** (`SimulationEngine`) z wybranym algorytmem.
+1. Przy starcie symulacji backend robi **kopię topologii** (`NetworkSnapshot`)
+   i tworzy **silnik zdarzeniowy** (`SimulationEngine`) z wybranym algorytmem. Każda
+   edycja sieci w trakcie (dodanie/usunięcie urządzenia lub łącza, zmiana parametrów
+   łącza, adresów, tras) daje nową kopię, a silnik informuje o różnicach Twój algorytm
+   (sekcja 5a).
 2. Silnik przetwarza kolejkę zdarzeń „pakiet dotarł do węzła X w chwili t" /
    „timer węzła X zadzwonił w chwili t" i przy każdym pyta **Twój algorytm**, co dalej;
    wszystko, co się dzieje, wychodzi na zewnątrz jako strumień **`SimEvent`ów**.
@@ -36,6 +39,7 @@ węzłowych), `payload` (szczegóły). Typy zdarzeń:
 | `packet_delivered` | pakiet **danych** dotarł do adresata | silnik |
 | `packet_dropped` | TTL wyczerpany albo `ctx.drop(...)` | silnik / Ty |
 | `table_update` | węzeł „nauczył się" tras | Ty, przez `ctx.table_update` |
+| `topology_change` | użytkownik zmienił sieć w trakcie symulacji (`payload.change`: `link_up`, `link_down`, `link_changed`, `node_added`, `node_removed`) | silnik |
 | `node_log` | dowolny komunikat do logu w UI | Ty, przez `ctx.log` |
 
 **Nie tworzysz `SimEvent`ów ręcznie** — powstają jako efekt uboczny wywołań `ctx.*`.
@@ -56,7 +60,8 @@ floodingu**: wysłanie tego samego obiektu do dwóch sąsiadów naraz to bug
 (współdzielony TTL i `prev_node`).
 
 ### `simulation/snapshot.py` — `NetworkSnapshot`, `SimNode`, `SimLink`, `Adjacency`
-Zamrożona kopia topologii. Najważniejsze dla Ciebie:
+Kopia topologii, na której działa symulacja (podmieniana po każdej edycji w trakcie
+symulacji, patrz sekcja 5a). Najważniejsze dla Ciebie:
 
 - `ctx.net.neighbors(node_id)` → lista **`Adjacency`** — to na nich operujesz:
 
@@ -72,11 +77,17 @@ Zamrożona kopia topologii. Najważniejsze dla Ciebie:
 - `SimNode`: `id`, `name`, `is_router`, `ports [(ip, mask)]`, `routing_table`
   (kopie wpisów użytkownika: static + connected), `find_next_hop(dest_ip)`
   (longest-prefix match jak w prawdziwym `Device`), `has_ip(ip)`.
+- `SimLink`: `id`, `a`, `b`, adresy obu końców (`ip_a`/`mask_a`, `ip_b`/`mask_b`),
+  `delay`, `bandwidth`, `weight`; `link.adjacency(node_id)` — to samo łącze widziane
+  z danego końca (taka sama `Adjacency` jak z `neighbors`), `link.other(node_id)` —
+  id drugiego końca.
 - `snapshot.links[link_id]`, `snapshot.find_by_ip(ip)`, `snapshot.first_ip(node_id)`.
 
 ### `simulation/algorithm.py` — `RoutingAlgorithm` (Twój kontrakt)
-Trzy haki + metadane. Implementujesz `on_packet`; `on_init`/`on_timer` tylko gdy
-masz control plane.
+Haki + metadane. Implementujesz `on_packet`; `on_init`/`on_timer` tylko gdy
+masz control plane, a haki zmian topologii (`on_link_up`, `on_link_down`,
+`on_link_changed`, `on_node_added`, `on_node_removed`) tylko gdy trzymasz wiedzę,
+która po zmianie sieci może być nieaktualna — opis w sekcji 5a.
 
 Opcje ustawiane w UI przed startem: lista `option_specs` w klasie. Każda opcja to
 dict z `key`, `label`, `type` (`bool` albo `choice` z listą `choices`), `default`
@@ -88,7 +99,7 @@ Przykład: `algorithms/rip.py`. Algorytm, który legalnie działa bez końca
 
 ### `simulation/engine.py` — `SimulationEngine`, `SimContext`, `SimConfig`, `Timer`
 Silnik jest **pasywny**: `start()` (odpala `on_init`), `peek_time()`, `advance()`
-(jedno zdarzenie), `inject_ping()`. Nie ma własnego zegara — dzięki temu w testach
+(jedno zdarzenie), `inject_packet()`, `apply_topology()`. Nie ma własnego zegara — dzięki temu w testach
 „przewijasz" świat pętlą, a na produkcji sesja nadaje mu tempo.
 
 **Co silnik robi ZA Ciebie** (żebyś nie musiał):
@@ -116,6 +127,7 @@ i w ogóle nie rusza pakietów **kontrolnych** — one zawsze trafiają do `on_p
 | `ctx.state(node)` | prywatny słownik węzła — Twoja pamięć (tablice, liczniki, LSDB…) |
 | `ctx.table_update(node, rows)` | pokaż w UI nauczoną tablicę (rows = lista dictów) |
 | `ctx.log(node, "...")` | linijka do logu w UI |
+| `ctx.name(node_id)` | nazwa urządzenia do logów — działa też dla urządzenia usuniętego w trakcie symulacji |
 
 ### `simulation/registry.py` — `@register`
 Rejestr algorytmów. `@register` na klasie + jedna linia importu w
@@ -134,13 +146,24 @@ sesja czeka najwyżej 0,25 s i przeskakuje zegar do tego zdarzenia. Dzięki temu
 timery z RFC (np. 30 s w RIP) nie wymagają skalowania, a pakiety nadal lecą w
 zwykłym tempie.
 
+Gdy użytkownik edytuje sieć w trakcie symulacji, endpoint REST po zapisaniu zmiany
+woła `store.sync_simulations()`, a każda działająca sesja (`sync_topology`) buduje
+nowy `NetworkSnapshot` i przekazuje go silnikowi (`apply_topology`) z bieżącym
+czasem symulacji.
+
 ### Frontend
 - `api/simulation_api.js` — `fetchAlgorithms()` + `SimulationSocket`
   (metody `start/ping/pause/resume/step/setSpeed/stop`, callbacki `onEvent/...`).
-- `components/SimulationSidebar.jsx` — panel: algorytm, prędkość, sterowanie,
-  mini-log; posiada socket; wystawia `sendPing` przez `ref`.
-- `App.jsx` — tryby `Buduj/Symuluj`, wybór źródła/celu pingu kliknięciami
-  (`handleSimDeviceClick`), `TopologyCanvas` w `readOnly` + `pingArmed`.
+- `components/SimulationSidebar.jsx` — panel: algorytm, opcje, prędkość, sterowanie,
+  status; posiada socket; wystawia `sendPing` przez `ref`.
+- `hooks/useSimulationState.js` — stan symulacji po stronie UI: kropki pakietów,
+  log, ostatnie `table_update` każdego węzła (podgląd tablic) i statystyki.
+- Okrągłe przyciski w prawym górnym rogu kanwy (`SimPanelToggles`) otwierają panele
+  po prawej: log zdarzeń, statystyki i edycję topologii (dodawanie urządzeń i łączy).
+  Usuwanie: ✕ po najechaniu na urządzenie lub łącze, parametry łącza: dwuklik.
+- Kliknięcie urządzenia w trybie Symuluj otwiera panel z jego **tablicą routingu z
+  symulacji** (`SimRoutingTable` rysuje kolumny z kluczy wierszy, które wysyłasz w
+  `ctx.table_update`, więc działa dla każdego algorytmu).
 
 ---
 
@@ -309,6 +332,50 @@ hold-down jako opcje), z testami w `tests/test_rip.py`.
 
 ---
 
+## 5a. Zmiany topologii w trakcie symulacji
+
+Użytkownik może w trakcie symulacji dodawać i usuwać urządzenia oraz łącza, zmieniać
+parametry łączy, adresy interfejsów i trasy statyczne. Silnik porównuje starą i nową
+kopię sieci i woła haki algorytmu w tej kolejności:
+
+1. `on_link_down(ctx, link)` — łącze zniknęło: usunięte, usunięto jego urządzenie albo
+   zmienił się adres któregoś końca. Pakiety, które nim leciały, są już porzucone
+   (`packet_dropped`, powód `link_disconnected`).
+2. `on_node_removed(ctx, node)` — urządzenie zniknęło (jego łącza przeszły już przez
+   punkt 1). Zaraz po tym haku silnik kasuje `ctx.state(node)`, timery tego węzła i
+   pakiety czekające w nim.
+3. `on_node_added(ctx, node)` — nowe urządzenie (bez łączy, te przychodzą w punkcie 4).
+4. `on_link_up(ctx, link)` — nowe łącze albo łącze z nowymi adresami.
+5. `on_link_changed(ctx, link, previous)` — zmieniły się `delay`/`bandwidth`/`weight`,
+   adresy bez zmian. Pakiety już w drodze dolatują po starym czasie, nowe po nowym.
+
+Łącza są rozpoznawane po `id`: zmiana adresu to dla algorytmu „łącze padło i wstało
+z nowymi adresami”. Przenumerowanie interfejsów routera (po usunięciu innego łącza)
+nie jest zmianą. Gdy haki się wykonują, `ctx.net` pokazuje już **nową** sieć.
+
+Kiedy coś implementować:
+
+- Algorytmy trywialne (random walk, flooding, hot potato…) czytają
+  `ctx.net.neighbors(...)` przy każdym hopie — nie potrzebują żadnego haka.
+- Algorytm z wiedzą o sieci w `ctx.state` (tablice, LSDB, sąsiedzi) musi ją poprawić:
+  backward learning zapomina trasy przez łącze, które zniknęło; RIP w `on_link_down`
+  oznacza trasy przez to łącze metryką 16 i wysyła triggered update, a w `on_link_up`
+  dodaje sieć podłączoną i wysyła Request do nowego sąsiada.
+- Metryka zależna od `delay`/`bandwidth` (np. EIGRP) → przelicz koszty w
+  `on_link_changed`.
+
+RIP ma opcję **Wykrywanie awarii łącza**: „Natychmiast” (domyślnie, jak utrata
+sygnału na interfejsie) albo „Cicha awaria” — wtedy `on_link_down` niczego nie
+zmienia i routery dowiadują się dopiero po 180 s bez aktualizacji (jak w testach
+count-to-infinity z `cut`).
+
+W testach zmianę robi się tak jak sesja: zmodyfikuj prawdziwe obiekty
+(`Device`/`Link`), zbuduj `NetworkSnapshot.from_db(...)` i wywołaj
+`engine.apply_topology(snapshot, at=czas)` — przykłady w
+`tests/test_dynamic_topology.py` i na końcu `tests/test_rip.py`.
+
+---
+
 ## 6. Jak testować
 
 ### Pytest (bez Dockera-sieci, bez WS — czysty silnik)
@@ -320,7 +387,7 @@ Wzorce masz w `backend/tests/test_simulation.py` (`make_engine`, `drain`,
 def test_moj_algorytm_dostarcza_ping():
     devices, links = diamond_topology()
     engine = make_engine(devices, links, get_algorithm("moj_algorytm"), seed=1)
-    engine.inject_ping(devices[0].id, devices[-1].id, at_time=0.0)
+    inject_ping(engine, devices[0].id, devices[-1].id, at_time=0.0)  # helper z test_simulation.py
     events = drain(engine)                     # przewiń świat do końca
     delivered = by_type(events, "packet_delivered")
     assert [d.payload["icmp"] for d in delivered] == ["request", "reply"]
@@ -328,7 +395,7 @@ def test_moj_algorytm_dostarcza_ping():
 
 Dla konwergentnych: po `engine.start()` **nie** wstrzykuj pingu od razu — najpierw
 przewiń konwergencję pętlą `while engine.peek_time() is not None and
-engine.peek_time() < 10_000: engine.advance()`, potem `inject_ping(..., at_time=10_000)`.
+engine.peek_time() < 10_000: engine.advance()`, potem `inject_ping(engine, ..., at_time=10_000)`.
 (Uwaga: `drain` w całości się nie skończy, bo timery działają wiecznie — przewijaj
 do konkretnego czasu.)
 
@@ -358,4 +425,4 @@ aplikacji błędem w swoim kodzie.
 | `finished: limit zdarzeń` | pętla bez tłumienia duplikatów / timer bez końca emitujący pakiety |
 | algorytm „widzi" cudzy stan | stan trzymany w polach klasy zamiast w `ctx.state(node)` |
 | wyniki nie do powtórzenia | użyty `random` zamiast `ctx.rng` |
-| nowe urządzenie nie istnieje w symulacji | dodane po starcie świata — snapshot go nie ma; zrestartuj symulację |
+| po usunięciu łącza algorytm dalej wysyła tam pakiety | wiedza w `ctx.state` wskazuje na łącze, którego już nie ma — obsłuż `on_link_down` (sekcja 5a) |
