@@ -239,6 +239,33 @@ button {
     color: var(--text-dim);
 }
 
+.sim-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.sim-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sim-option--toggle {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.sim-option--toggle input {
+    margin: 0;
+    accent-color: var(--accent);
+}
+
 .sim-speed {
     display: flex;
     flex-direction: column;
@@ -275,6 +302,26 @@ button {
 .sidebar__link-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+}
+
+/* Ping mode toggle button */
+.sim-ping-toggle {
+    width: 100%;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.sim-ping-toggle--armed {
+    background: rgba(248, 113, 113, 0.18) !important;
+    color: #f87171 !important;
+    border-color: #f87171 !important;
+    box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25);
+    animation: ping-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ping-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25); }
+    50%       { box-shadow: 0 0 0 5px rgba(248, 113, 113, 0.05); }
 }
 
 .sim-status {
@@ -419,3 +466,5 @@ button {
     padding: 8px;
     font-size: 11px;
 }
+
+/* ── Stats panel styles moved to SimulationStats.css ── */

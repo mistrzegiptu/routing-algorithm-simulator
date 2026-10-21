@@ -28,6 +28,10 @@ class CommandHandler:
                 self.session.clock.set_speed(command.speed)
                 self.session._wake_event.set()
                 await self.session.send_status()
+        elif action == "set_skip_idle":
+            if command.skip_idle is not None:
+                self.session.skip_idle = command.skip_idle
+                self.session._wake_event.set()
         elif action == "ping":
             await self._inject_ping(command)
         elif action == "stop":
@@ -45,11 +49,16 @@ class CommandHandler:
 
         if command.speed is not None:
             self.session.clock.set_speed(command.speed)
+        if command.skip_idle is not None:
+            self.session.skip_idle = command.skip_idle
 
         snapshot = NetworkSnapshot.from_db(self.session.store.devices, self.session.store.links)
+        algorithm = get_algorithm(command.algorithm, command.options)
         config = SimConfig(seed=command.seed)
+        if algorithm.max_events:
+            config.max_events = algorithm.max_events
 
-        self.session.engine = SimulationEngine(snapshot, get_algorithm(command.algorithm), config)
+        self.session.engine = SimulationEngine(snapshot, algorithm, config)
         self.session.clock.state = "running"
 
         await self.session.send_status()

@@ -56,8 +56,11 @@ class SimContext:
         """
         self._engine._transmit(node.id, packet, adj)
 
-    def send_control(self, node, protocol, payload, adj):
+    def send_control(self, node, protocol, payload, adj, summary=None):
         """Emit a control-plane packet (hello/LSA/DV...) to one neighbor."""
+        meta = {"payload": payload}
+        if summary:
+            meta["summary"] = summary
         packet = Packet(
             id=self._engine._next_packet_id(),
             kind=KIND_CONTROL,
@@ -65,7 +68,7 @@ class SimContext:
             src_id=node.id,
             dst_id=adj.neighbor_id,
             ttl=1,
-            meta={"payload": payload},
+            meta=meta,
         )
         self._engine._transmit(node.id, packet, adj)
 
@@ -120,6 +123,7 @@ class SimulationEngine:
         self._pending = []         # SimEvents produced by the current handler
         self._emitted = 0
         self._packet_seq = 0
+        self._in_flight = 0
         self._algo_state = {}
         self._ctx = SimContext(self)
 
@@ -143,6 +147,7 @@ class SimulationEngine:
         self.now = max(self.now, t)
 
         if isinstance(entry, _Arrival):
+            self._in_flight -= 1
             self._handle_arrival(entry)
         else:
             node = self.snapshot.node(entry.node_id)
@@ -156,11 +161,16 @@ class SimulationEngine:
 
     def inject_packet(self, source_id, curr_time, packet):
         """Schedule a packet source→target at sim time ``at_time``."""
+        if packet.meta.get("icmp") == "request":
+            packet.meta.setdefault("ping_id", packet.id)
         self._push(curr_time, _Arrival(packet, source_id, None, None))
         return packet.id
 
     def summary(self):
         return {"sim_time": self.now, "events": self._emitted}
+
+    def has_traffic(self):
+        return self._in_flight > 0
 
     # ------------------------------------------------------- event dispatch
     def _handle_arrival(self, entry):
@@ -203,6 +213,10 @@ class SimulationEngine:
             request_created = packet.meta.get("request_created_t")
             if request_created is not None:
                 payload["rtt"] = self.now - request_created
+        # Always surface ping_id so the frontend can track operations vs. packets.
+        ping_id = packet.meta.get("ping_id")
+        if ping_id is not None:
+            payload["ping_id"] = ping_id
 
         self._emit(
             PACKET_DELIVERED,
@@ -227,7 +241,10 @@ class SimulationEngine:
                 request_id=packet.id,
                 request_created_t=packet.meta.get("created_t")
             )
+            if ping_id is not None:
+                reply.meta["ping_id"] = ping_id
             self._push(self.now, _Arrival(reply, node.id, None, None))
+
 
     def _is_delivered(self, node, packet):
         if packet.dst_id is not None and node.id == packet.dst_id:
@@ -247,6 +264,9 @@ class SimulationEngine:
         icmp = packet.meta.get("icmp")
         if icmp:
             payload["icmp"] = icmp
+        summary = packet.meta.get("summary")
+        if summary:
+            payload["summary"] = summary
 
         self._emit(
             PACKET_SENT,
@@ -279,6 +299,8 @@ class SimulationEngine:
 
     # ----------------------------------------------------------- low level
     def _push(self, t, entry):
+        if isinstance(entry, _Arrival):
+            self._in_flight += 1
         heapq.heappush(self._queue, (t, self._push_seq, entry))
         self._push_seq += 1
 
@@ -293,3 +315,34 @@ class SimulationEngine:
     def _next_packet_id(self):
         self._packet_seq += 1
         return f"p{self._packet_seq}"
+
+    def disconnect_link(self, link_id):
+        if not self.snapshot.disconnect_link(link_id):
+            return
+
+        retained = []
+
+        for item in self._queue:
+            arrival = item[-1]
+            if isinstance(arrival, _Arrival) and arrival.link_id == link_id:
+                payload = {"reason": "link_disconnected"}
+                icmp = arrival.packet.meta.get("icmp")
+                if icmp:
+                    payload["icmp"] = icmp
+
+                self._emit(
+                    PACKET_DROPPED,
+                    kind=arrival.packet.kind,
+                    packet_id=arrival.packet.id,
+                    protocol=arrival.packet.protocol,
+                    from_id=arrival.from_id,
+                    to_id=arrival.node_id,
+                    link_id=link_id,
+                    payload=payload,
+                )
+            else:
+                retained.append(item)
+
+        self._queue = retained
+        heapq.heapify(self._queue)
+        return self._collect()

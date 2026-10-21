@@ -6,6 +6,8 @@ from .models import SimulationCommand
 from .clock import SimulationClock
 from .handler import CommandHandler
 
+IDLE_SKIP_WALL = 0.25
+
 class SimulationSession:
     def __init__(self, websocket, store):
         self.ws = websocket
@@ -14,7 +16,8 @@ class SimulationSession:
         self.clock = SimulationClock()
         self.handler = CommandHandler(self)
         self.engine = None
-        
+        self.skip_idle = True
+
         self._task = None
         self._send_lock = asyncio.Lock()
         self._wake_event = asyncio.Event()
@@ -68,15 +71,21 @@ class SimulationSession:
                     continue
 
                 wall_wait = (t_next - self.clock.sim_now()) / self.clock.speed / 1000.0
-                
+
                 if wall_wait > 0:
+                    skip = (
+                        self.skip_idle
+                        and wall_wait > IDLE_SKIP_WALL
+                        and not self.engine.has_traffic()
+                    )
                     try:
                         await asyncio.wait_for(
                             self._wake_event.wait(),
-                            timeout=wall_wait
+                            timeout=IDLE_SKIP_WALL if skip else wall_wait
                         )
                     except TimeoutError:
-                        pass
+                        if skip and self.clock.state == "running":
+                            self.clock.anchor(t_next)
                     continue
 
                 await self.send_events(self.engine.advance())
@@ -103,3 +112,14 @@ class SimulationSession:
 
     async def send_error(self, message):
         await self.send({"type": "error", "message": message})
+
+    async def disconnect_link(self, link_id):
+        if self.engine is not None:
+            events = self.engine.disconnect_link(link_id)
+            await self.send_events(events)
+
+        self._wake_event.set()
+        await self.send({
+            "type": "link_disconnected",
+            "link_id": link_id,
+        })
