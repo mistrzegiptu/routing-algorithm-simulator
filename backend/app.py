@@ -82,7 +82,7 @@ async def simulation_websocket(websocket: WebSocket, store: TopologyStore = Depe
 
 
 @app.post("/api/devices")
-def create_device(device_data: DeviceCreateRequest, store: TopologyStore = Depends(get_topology_store)):
+async def create_device(device_data: DeviceCreateRequest, store: TopologyStore = Depends(get_topology_store)):
     kwargs = {}
     kwargs['id'] = store.next_device_id()
 
@@ -100,12 +100,13 @@ def create_device(device_data: DeviceCreateRequest, store: TopologyStore = Depen
     device_cls = DEVICE_CLASSES[device_data.type]
     new_device = device_cls(**kwargs)
     store.devices.append(new_device)
+    await store.sync_simulations()
 
     return serialize_device(new_device)
 
 
 @app.put("/api/devices/{device_id}")
-def update_device(
+async def update_device(
     device_id: int,
     device_data: DeviceUpdateRequest = Body(...),
     store: TopologyStore = Depends(get_topology_store)
@@ -140,6 +141,7 @@ def update_device(
     if device_data.name is not None:
         device.name = device_data.name
 
+    await store.sync_simulations()
     return serialize_device(device)
 
 
@@ -190,9 +192,7 @@ async def delete_device(device_id: int, store: TopologyStore = Depends(get_topol
         if l.device_a in freed_peer_ports or l.device_b in freed_peer_ports
     ]
 
-    for session in tuple(store.simulation_sessions):
-        for link_id in removed_link_ids:
-            await session.disconnect_link(link_id)
+    await store.sync_simulations()
 
     return {
         "message": "Device deleted successfully",
@@ -203,7 +203,7 @@ async def delete_device(device_id: int, store: TopologyStore = Depends(get_topol
 
 
 @app.get("/api/devices/{device_id}/available-ports")
-def get_available_ports(device_id: int, store: TopologyStore = Depends(get_topology_store)):
+async def get_available_ports(device_id: int, store: TopologyStore = Depends(get_topology_store)):
     device = store.find_device(device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -218,15 +218,18 @@ def get_available_ports(device_id: int, store: TopologyStore = Depends(get_topol
 
 
 @app.post("/api/links")
-def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get_topology_store)):
+async def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get_topology_store)):
     device_a = store.find_device(link_data.device_a_id)
     device_b = store.find_device(link_data.device_b_id)
 
     if not device_a or not device_b:
         raise HTTPException(status_code=404, detail="At least one of the devices not found")
+    if device_a is device_b:
+        raise HTTPException(status_code=400, detail="A device cannot be connected to itself")
     if isinstance(device_a, Computer) and isinstance(device_b, Computer):
         raise HTTPException(status_code=400, detail="Two computers cannot be connected directly")
 
+    ports_before = {device: len(device.ports) for device in (device_a, device_b)}
     try:
         port_a_num = link_data.port_a_num
         port_b_num = link_data.port_b_num
@@ -248,7 +251,12 @@ def create_link(link_data: CreateLinkRequest, store: TopologyStore = Depends(get
         )
         store.links.append(link)
     except ValueError as e:
+        for device, count in ports_before.items():
+            del device.ports[count:]
+            device.port_number = count
         raise HTTPException(status_code=400, detail=str(e))
+
+    await store.sync_simulations()
 
     return {
         **serialize_link(link),
@@ -285,8 +293,7 @@ async def delete_link(link_id: int, store: TopologyStore = Depends(get_topology_
         if l.device_a in touched_ids or l.device_b in touched_ids
     ]
 
-    for session in tuple(store.simulation_sessions):
-        await session.disconnect_link(link_id)
+    await store.sync_simulations()
 
     return {
         "message": "Link deleted successfully",
@@ -296,7 +303,7 @@ async def delete_link(link_id: int, store: TopologyStore = Depends(get_topology_
 
 
 @app.put("/api/links/{link_id}")
-def update_link(link_id: int, link_data: LinkUpdateRequest, store: TopologyStore = Depends(get_topology_store)):
+async def update_link(link_id: int, link_data: LinkUpdateRequest, store: TopologyStore = Depends(get_topology_store)):
     link = next((l for l in store.links if l.id == link_id), None)
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
@@ -310,38 +317,43 @@ def update_link(link_id: int, link_data: LinkUpdateRequest, store: TopologyStore
     if link_data.weight is not None:
         link.set_weight(link_data.weight)
 
+    await store.sync_simulations()
     return serialize_link(link)
 
 @app.post("/api/route/{device_id}")
-def add_route(route: RouteCreateRequest, device_id: int, store: TopologyStore = Depends(get_topology_store)):
+async def add_route(route: RouteCreateRequest, device_id: int, store: TopologyStore = Depends(get_topology_store)):
     device = store.find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
 
     try:
         device.add_route(route.dest, route.mask, route.next_hop, route.entry_type)
-        return {"message":"Route added"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+    await store.sync_simulations()
+    return {"message":"Route added"}
+
 @app.get("/api/route/{device_id}")
-def get_routes(device_id: int, store: TopologyStore = Depends(get_topology_store)):
+async def get_routes(device_id: int, store: TopologyStore = Depends(get_topology_store)):
     device = store.find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
     return {"routes": device.routing_table}
 
 @app.delete("/api/route/{device_id}")
-def delete_route(device_id: int, route_data: RouteDeleteRequest, store: TopologyStore = Depends(get_topology_store)):
+async def delete_route(device_id: int, route_data: RouteDeleteRequest, store: TopologyStore = Depends(get_topology_store)):
     device = store.find_device(device_id)
     if not device: raise HTTPException(status_code=404, detail="Device has been not found")
 
     try:
         device.delete_route(route_data.dest, route_data.mask)
-        return {"message": "Route deleted successfully"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    await store.sync_simulations()
+    return {"message": "Route deleted successfully"}
+
 @app.post("/api/ping")
-def ping(ping_data: PingRequest, store: TopologyStore = Depends(get_topology_store)):
+async def ping(ping_data: PingRequest, store: TopologyStore = Depends(get_topology_store)):
     source = store.find_device(ping_data.source_id)
     target = store.find_device(ping_data.target_id)
 
@@ -354,11 +366,16 @@ def ping(ping_data: PingRequest, store: TopologyStore = Depends(get_topology_sto
     return result
 
 @app.get("/api/export")
-def export_topology_endpoint(store: TopologyStore = Depends(get_topology_store)):
+async def export_topology_endpoint(store: TopologyStore = Depends(get_topology_store)):
     exported_data = export_topology(store)
     return exported_data
 
 @app.post("/api/import")
-def import_topology_endpoint(json_content: dict = Body(...), store: TopologyStore = Depends(get_topology_store)):
-    import_topology(json_content, store)
+async def import_topology_endpoint(json_content: dict = Body(...), store: TopologyStore = Depends(get_topology_store)):
+    try:
+        import_topology(json_content, store)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    await store.sync_simulations()
     return {"message": "Topology imported successfully"}

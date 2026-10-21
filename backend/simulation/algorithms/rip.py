@@ -127,44 +127,143 @@ class RIPv2(RoutingAlgorithm):
                 "Rozszerzenie Cisco, nie ma go w RFC."
             ),
         },
+        {
+            "key": "failure_detection",
+            "label": "Wykrywanie awarii łącza",
+            "type": "choice",
+            "default": "immediate",
+            "choices": [
+                {"value": "immediate", "label": "Natychmiast (interfejs down)"},
+                {"value": "timeout", "label": "Cicha awaria (timeout 180 s)"},
+            ],
+            "description": (
+                "Co się dzieje po usunięciu łącza w trakcie symulacji: oba routery od razu oznaczają "
+                "trasy przez nie metryką 16 i wysyłają aktualizację, albo łącze znika bez sygnału "
+                "i trasy wygasają dopiero po 180 s bez aktualizacji."
+            ),
+        },
     ]
 
     def on_init(self, ctx):
         for node in ctx.net.nodes.values():
-            if not node.is_router:
+            self._start_router(ctx, node)
+
+    def on_node_added(self, ctx, node):
+        self._start_router(ctx, node)
+
+    def on_link_up(self, ctx, link):
+        for node_id in (link.a, link.b):
+            node = ctx.net.node(node_id)
+            if node is None or not node.is_router:
                 continue
             st = ctx.state(node)
-            st.update(
-                routes={},
-                next_update_at=None,
-                triggered_hold_until=0.0,
-                triggered_pending=False,
-                maintenance_at=None,
-                maintenance_gen=0,
-                rejected_links=set(),
-            )
-            shared = set()
-            for adj in ctx.net.neighbors(node.id):
-                key = (network_of(adj.local_ip, adj.local_mask), adj.local_mask)
-                if key in st["routes"]:
-                    shared.add(key)
-                    continue
+            adj = link.adjacency(node_id)
+            key = (network_of(adj.local_ip, adj.local_mask), adj.local_mask)
+            changed = False
+            for route in st["routes"].values():
+                if route.source == "connected" and route.link_id == link.id and route.key != key:
+                    route.source = PROTOCOL
+                    self._start_deletion(route, ctx.now)
+                    changed = True
+            route = st["routes"].get(key)
+            if route is not None and route.source == "connected":
+                if route.link_id == link.id:
+                    route.interface_ip = adj.local_ip
+                else:
+                    ctx.log(node, self._shared_subnet_warning(key))
+            else:
                 st["routes"][key] = Route(
                     network=key[0],
                     mask=key[1],
                     metric=LINK_COST,
                     source="connected",
-                    link_id=adj.link_id,
+                    link_id=link.id,
                     interface_ip=adj.local_ip,
+                    changed=True,
                 )
-            for key in sorted(shared):
-                ctx.log(
-                    node,
-                    f"Kilka interfejsów w podsieci {prefix(*key)} — RIP nie rozróżni tych łączy, "
-                    f"nadaj każdemu łączu osobną podsieć",
+                ctx.log(node, f"Łącze do {ctx.name(adj.neighbor_id)} działa — podłączona sieć {prefix(*key)}")
+                changed = True
+            if changed:
+                self._publish(ctx, node, st)
+                self._signal_change(ctx, node, st)
+                self._schedule_maintenance(ctx, node, st)
+            if adj in self._rip_neighbors(ctx, node):
+                ctx.send_control(
+                    node, PROTOCOL, {"command": "request", "src_ip": adj.local_ip}, adj,
+                    summary="Request",
                 )
-            self._publish(ctx, node, st)
-            ctx.schedule_timer(node, ctx.rng.uniform(0, BOOT_JITTER), "boot")
+
+    def on_link_down(self, ctx, link):
+        for node_id in (link.a, link.b):
+            node = ctx.net.node(node_id)
+            if node is None or not node.is_router:
+                continue
+            st = ctx.state(node)
+            st["rejected_links"].discard(link.id)
+            if self.options["failure_detection"] == "timeout":
+                continue
+            lost = []
+            for route in st["routes"].values():
+                if route.link_id != link.id:
+                    continue
+                if route.source == "connected":
+                    other = next(
+                        (adj for adj in ctx.net.neighbors(node.id)
+                         if (network_of(adj.local_ip, adj.local_mask), adj.local_mask) == route.key),
+                        None,
+                    )
+                    if other is not None:
+                        route.link_id = other.link_id
+                        route.interface_ip = other.local_ip
+                        continue
+                    route.source = PROTOCOL
+                elif not route.reachable:
+                    continue
+                self._start_deletion(route, ctx.now)
+                lost.append(route)
+            if lost:
+                ctx.log(node, f"Łącze do {ctx.name(link.other(node_id))} nie działa — metryka 16: {self._prefix_list(lost)}")
+                self._publish(ctx, node, st)
+                self._signal_change(ctx, node, st)
+                self._schedule_maintenance(ctx, node, st)
+
+    def _start_router(self, ctx, node):
+        if not node.is_router:
+            return
+        st = ctx.state(node)
+        st.update(
+            routes={},
+            next_update_at=None,
+            triggered_hold_until=0.0,
+            triggered_pending=False,
+            maintenance_at=None,
+            maintenance_gen=0,
+            rejected_links=set(),
+        )
+        shared = set()
+        for adj in ctx.net.neighbors(node.id):
+            key = (network_of(adj.local_ip, adj.local_mask), adj.local_mask)
+            if key in st["routes"]:
+                shared.add(key)
+                continue
+            st["routes"][key] = Route(
+                network=key[0],
+                mask=key[1],
+                metric=LINK_COST,
+                source="connected",
+                link_id=adj.link_id,
+                interface_ip=adj.local_ip,
+            )
+        for key in sorted(shared):
+            ctx.log(node, self._shared_subnet_warning(key))
+        self._publish(ctx, node, st)
+        ctx.schedule_timer(node, ctx.rng.uniform(0, BOOT_JITTER), "boot")
+
+    def _shared_subnet_warning(self, key):
+        return (
+            f"Kilka interfejsów w podsieci {prefix(*key)} — RIP nie rozróżni tych łączy, "
+            f"nadaj każdemu łączu osobną podsieć"
+        )
 
     def on_timer(self, ctx, node, timer):
         if not node.is_router:
@@ -492,8 +591,7 @@ class RIPv2(RoutingAlgorithm):
         ctx.table_update(node, rows)
 
     def _name(self, ctx, node_id):
-        node = ctx.net.node(node_id)
-        return node.name if node is not None else f"#{node_id}"
+        return ctx.name(node_id)
 
     def _prefix_list(self, routes):
         names = [prefix(route.network, route.mask) for route in routes[:3]]

@@ -59,16 +59,16 @@ class CreateLinkRequest(BaseModel):
     port_a_num: Optional[int] = None
     port_b_num: Optional[int] = None
       
-    bandwidth: Optional[int] = None
-    delay: int = 10
+    bandwidth: Optional[int] = Field(default=None, ge=0)
+    delay: int = Field(default=10, ge=0)
     unit: str = "Mbps"
-    weight: int = 1
+    weight: int = Field(default=1, ge=0)
 
 class LinkUpdateRequest(BaseModel):
-    bandwidth: Optional[int] = None
-    delay: Optional[int] = None
+    bandwidth: Optional[int] = Field(default=None, ge=0)
+    delay: Optional[int] = Field(default=None, ge=0)
     unit: Optional[str] = None
-    weight: Optional[int] = None
+    weight: Optional[int] = Field(default=None, ge=0)
 
 class RouteCreateRequest(BaseModel):
     dest: str

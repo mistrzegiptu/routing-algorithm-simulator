@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from .models import SimulationCommand
 from .clock import SimulationClock
 from .handler import CommandHandler
+from .snapshot import NetworkSnapshot
 
 IDLE_SKIP_WALL = 0.25
 
@@ -52,9 +53,6 @@ class SimulationSession:
     async def _run(self):
         """Pętla napędzająca czas."""
         try:
-            await self.send_events(self.engine.start())
-            self.clock.anchor(0.0)
-
             while self.clock.state in ("running", "paused"):
                 self._wake_event.clear()
                 if self.engine.limit_hit:
@@ -113,13 +111,17 @@ class SimulationSession:
     async def send_error(self, message):
         await self.send({"type": "error", "message": message})
 
-    async def disconnect_link(self, link_id):
-        if self.engine is not None:
-            events = self.engine.disconnect_link(link_id)
-            await self.send_events(events)
-
+    async def sync_topology(self):
+        if self.engine is None or self.clock.state not in ("running", "paused"):
+            return
+        snapshot = NetworkSnapshot.from_db(self.store.devices, self.store.links)
+        try:
+            events = self.engine.apply_topology(snapshot, at=self.clock.sim_now())
+        except Exception as e:
+            self._cancel_run()
+            self.clock.state = "error"
+            await self.send_error(str(e))
+            await self.send_status()
+            return
         self._wake_event.set()
-        await self.send({
-            "type": "link_disconnected",
-            "link_id": link_id,
-        })
+        await self.send_events(events)

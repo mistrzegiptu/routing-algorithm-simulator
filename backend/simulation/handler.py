@@ -58,10 +58,21 @@ class CommandHandler:
         if algorithm.max_events:
             config.max_events = algorithm.max_events
 
-        self.session.engine = SimulationEngine(snapshot, algorithm, config)
+        self.session._cancel_run()
+        engine = SimulationEngine(snapshot, algorithm, config)
+        try:
+            start_events = engine.start()
+        except Exception as e:
+            self.session.clock.state = "error"
+            await self.session.send_error(str(e))
+            return await self.session.send_status()
+
+        self.session.engine = engine
+        self.session.clock.anchor(0.0)
         self.session.clock.state = "running"
 
         await self.session.send_status()
+        await self.session.send_events(start_events)
         self.session.start_run_loop()
 
     async def _step(self):
@@ -84,16 +95,17 @@ class CommandHandler:
         if engine.snapshot.node(command.source_id) is None or engine.snapshot.node(command.target_id) is None:
             return await self.session.send_error(f"Nieznane urządzenie")
 
+        now = max(engine.now, self.session.clock.sim_now())
         packet = Packet.create_ping_packet(
             packet_id=engine._next_packet_id(),
             src_id=command.source_id,
             dst_id=command.target_id,
             dst_ip=target_ip,
             ttl=engine.config.ttl,
-            time=self.session.clock.sim_now()
+            time=now
         )
 
-        packet_id = engine.inject_packet(packet.src_id, self.session.clock.sim_now(), packet)
+        packet_id = engine.inject_packet(packet.src_id, now, packet)
         self.session._wake_event.set()
         await self.session.send({
             "type": "ping_sent", "packet_id": packet_id,
