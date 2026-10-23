@@ -295,7 +295,7 @@ class SimulationEngine:
                 packet_id=self._next_packet_id(),
                 src_id=node.id,
                 dst_id=packet.src_id,
-                dst_ip=self.snapshot.first_ip(packet.src_id),
+                dst_ip=packet.meta.get("source_ip") or self.snapshot.first_ip(packet.src_id),
                 ttl=self.config.ttl,
                 time=self.now,
                 icmp_type="reply",
@@ -308,6 +308,8 @@ class SimulationEngine:
 
 
     def _is_delivered(self, node, packet):
+        if packet.protocol == "icmp" and packet.dst_ip:
+            return node.has_ip(packet.dst_ip)
         if packet.dst_id is not None and node.id == packet.dst_id:
             return True
         return bool(packet.dst_ip) and node.has_ip(packet.dst_ip)

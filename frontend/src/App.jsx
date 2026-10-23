@@ -49,6 +49,7 @@ function App() {
     simRunning,
     setSimRunning,
     simPingSourceId,
+    simPingDestId,
     simState,
     simSpeed,
     setSimSpeed,
@@ -65,7 +66,15 @@ function App() {
     handleSimStatusChange,
     handleSimDeviceClick,
     handleSimPaneClick,
-    setSimPingSourceId
+    setSimPingSourceId,
+    simPingSourceIp,
+    simPingDestIp,
+    simPingSourcePorts,
+    simPingDestPorts,
+    handleSimSourceIpSelect,
+    handleSimDestIpSelect,
+    handleSimSendPing
+
   } = useSimulationState(devices, links)
 
   const {
@@ -95,8 +104,16 @@ function App() {
     handlePingReplay,
     requestDeleteDevice,
     cancelDeleteDevice,
-    confirmDeleteDevice
-  } = useBuildTools(removeDevice, saveNewLink, simPingArmed)
+    confirmDeleteDevice,
+    pingDest,
+    pingSourceIp,
+    pingDestIp,
+    setPingSourceIp,
+    setPingDestIp,
+    pingSourcePorts,
+    pingDestPorts,
+    handleSendPing,
+  } = useBuildTools(devices, removeDevice, saveNewLink, simPingArmed)
 
   // --- Link deletion (fast, no confirmation — a link is cheap to recreate) ---
   const requestDeleteLink = useCallback(async (id) => {
@@ -214,6 +231,15 @@ function App() {
           onImport={importHandler}
           mode={appMode}
           onSwitchMode={handleSwitchMode}
+          pingSource={pingSource}
+          pingDest={pingDest}
+          pingSourcePorts={pingSourcePorts}
+          pingDestPorts={pingDestPorts}
+          pingSourceIp={pingSourceIp}
+          pingDestIp={pingDestIp}
+          onSourceIpSelect={setPingSourceIp}
+          onDestIpSelect={setPingDestIp}
+          onSendPing={handleSendPing}
         />
       ) : (
         <SimulationSidebar
@@ -222,6 +248,7 @@ function App() {
           mode={appMode}
           onSwitchMode={handleSwitchMode}
           pingSourceId={simPingSourceId}
+          pingDestId={simPingDestId}
           simPingArmed={simPingArmed}
           onToggleSimPing={handleToggleSimPing}
           onStatusChange={handleSimulationStatusChange}
@@ -235,6 +262,13 @@ function App() {
           eventCount={simEventCount}
           collapsed={simSidebarCollapsed}
           onToggleCollapsed={() => setSimSidebarCollapsed(v => !v)}
+          simPingSourcePorts={simPingSourcePorts}
+          simPingDestPorts={simPingDestPorts}
+          simPingSourceIp={simPingSourceIp}
+          simPingDestIp={simPingDestIp}
+          onSourceIpSelect={handleSimSourceIpSelect}
+          onDestIpSelect={handleSimDestIpSelect}
+          onSendPing={handleSimSendPing}
         />
       )}
 

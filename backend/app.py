@@ -354,15 +354,7 @@ async def delete_route(device_id: int, route_data: RouteDeleteRequest, store: To
 
 @app.post("/api/ping")
 async def ping(ping_data: PingRequest, store: TopologyStore = Depends(get_topology_store)):
-    source = store.find_device(ping_data.source_id)
-    target = store.find_device(ping_data.target_id)
-
-    if not source:
-        raise HTTPException(status_code=404, detail=f"Source device {ping_data.source_id} not found")
-    if not target:
-        raise HTTPException(status_code=404, detail=f"Target device {ping_data.target_id} not found")
-
-    result = build_ping_result(store.devices, store.links, ping_data.source_id, ping_data.target_id)
+    result = build_ping_result(store.devices, store.links, ping_data.source_ip, ping_data.target_ip)
     return result
 
 @app.get("/api/export")
