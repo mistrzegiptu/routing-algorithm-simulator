@@ -1,9 +1,9 @@
-﻿{
+{
   "devices_db": [
     {
       "type": "router",
       "name": "R0",
-      "port_number": 4,
+      "port_number": 5,
       "ports": [
         {
           "ip": "10.0.0.1",
@@ -20,6 +20,10 @@
         {
           "ip": "10.0.25.1",
           "mask": 30
+        },
+        {
+          "ip": "192.168.10.1",
+          "mask": 24
         }
       ],
       "id": 0,
@@ -145,7 +149,7 @@
     {
       "type": "router",
       "name": "R6",
-      "port_number": 4,
+      "port_number": 5,
       "ports": [
         {
           "ip": "10.0.5.2",
@@ -162,6 +166,10 @@
         {
           "ip": "10.0.34.1",
           "mask": 30
+        },
+        {
+          "ip": "192.168.74.1",
+          "mask": 24
         }
       ],
       "id": 6,
@@ -291,7 +299,7 @@
     {
       "type": "router",
       "name": "R12",
-      "port_number": 4,
+      "port_number": 5,
       "ports": [
         {
           "ip": "10.0.11.2",
@@ -308,6 +316,10 @@
         {
           "ip": "10.0.40.1",
           "mask": 30
+        },
+        {
+          "ip": "192.168.42.1",
+          "mask": 24
         }
       ],
       "id": 12,
@@ -425,7 +437,7 @@
     {
       "type": "router",
       "name": "R18",
-      "port_number": 4,
+      "port_number": 5,
       "ports": [
         {
           "ip": "10.0.17.2",
@@ -442,6 +454,10 @@
         {
           "ip": "10.0.40.2",
           "mask": 30
+        },
+        {
+          "ip": "192.168.106.1",
+          "mask": 24
         }
       ],
       "id": 18,
@@ -550,6 +566,58 @@
         }
       ],
       "id": 23,
+      "routing_table": []
+    },
+    {
+      "type": "computer",
+      "name": "PC-A",
+      "port_number": 1,
+      "ports": [
+        {
+          "ip": "192.168.10.10",
+          "mask": 24
+        }
+      ],
+      "id": 24,
+      "routing_table": []
+    },
+    {
+      "type": "computer",
+      "name": "PC-B",
+      "port_number": 1,
+      "ports": [
+        {
+          "ip": "192.168.42.10",
+          "mask": 24
+        }
+      ],
+      "id": 25,
+      "routing_table": []
+    },
+    {
+      "type": "computer",
+      "name": "PC-C",
+      "port_number": 1,
+      "ports": [
+        {
+          "ip": "192.168.74.10",
+          "mask": 24
+        }
+      ],
+      "id": 26,
+      "routing_table": []
+    },
+    {
+      "type": "computer",
+      "name": "PC-D",
+      "port_number": 1,
+      "ports": [
+        {
+          "ip": "192.168.106.10",
+          "mask": 24
+        }
+      ],
+      "id": 27,
       "routing_table": []
     }
   ],
@@ -972,6 +1040,46 @@
       "port_b_num": 2,
       "bandwidth": 1000,
       "delay": 100,
+      "unit": "Mbps"
+    },
+    {
+      "id": 42,
+      "device_a": 0,
+      "device_b": 24,
+      "port_a_num": 4,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 1,
+      "unit": "Mbps"
+    },
+    {
+      "id": 43,
+      "device_a": 12,
+      "device_b": 25,
+      "port_a_num": 4,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 1,
+      "unit": "Mbps"
+    },
+    {
+      "id": 44,
+      "device_a": 6,
+      "device_b": 26,
+      "port_a_num": 4,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 1,
+      "unit": "Mbps"
+    },
+    {
+      "id": 45,
+      "device_a": 18,
+      "device_b": 27,
+      "port_a_num": 4,
+      "port_b_num": 0,
+      "bandwidth": 100,
+      "delay": 1,
       "unit": "Mbps"
     }
   ]
