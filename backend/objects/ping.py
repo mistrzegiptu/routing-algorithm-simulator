@@ -31,13 +31,6 @@ def _find_neighbor_by_next_hop(device, next_hop_ip, topology):
     return None
 
 
-def _get_device_target_ip(target_device):
-    for port in target_device.ports:
-        if port.ip:
-            return port.ip
-    return None
-
-
 def _same_subnet(ip_a, ip_b, mask):
     net_a = int(addr.IPv4Address(ip_a)) >> (32 - mask) if mask > 0 else 0
     net_b = int(addr.IPv4Address(ip_b)) >> (32 - mask) if mask > 0 else 0
@@ -51,20 +44,28 @@ def _get_default_gateway(device, topology):
         return neighbor_id, link
     return None
 
+def _find_device_by_ip(device_db, ip):
+    return next(
+        (device for device in device_db
+            if any(port.ip == ip for port in device.ports)), 
+        None
+    )
 
-def trace_route(devices_db, links_db, source_id, target_id):
+def trace_route(devices_db, links_db, source_ip, target_ip):
     device_map = _device_map(devices_db)
-    source = device_map.get(source_id)
-    target = device_map.get(target_id)
+    source = _find_device_by_ip(devices_db, source_ip)
+    target = _find_device_by_ip(devices_db, target_ip)
 
     if not source or not target:
         return []
 
+    source_id = source.id
+    target_id = target.id
+
     if source_id == target_id:
         return [(source_id, None)]
 
-    dest_ip = _get_device_target_ip(target)
-    if not dest_ip:
+    if not target_ip:
         return []
 
     topology = _build_link_topology(links_db, devices_db)
@@ -75,13 +76,13 @@ def trace_route(devices_db, links_db, source_id, target_id):
     max_hops = len(devices_db) + 1
 
     for _ in range(max_hops):
-        direct = _is_dest_directly_connected(current, dest_ip, topology, device_map)
+        direct = _is_dest_directly_connected(current, target_ip, topology, device_map)
         if direct:
             neighbor_id, link = direct
             path.append((neighbor_id, link))
             return path
 
-        next_hop_ip = current.find_next_hop(dest_ip)
+        next_hop_ip = current.find_next_hop(target_ip)
 
         if next_hop_ip:
             neighbor = _find_neighbor_by_next_hop(current, next_hop_ip, topology)
@@ -124,14 +125,16 @@ def _is_dest_directly_connected(device, dest_ip, topology, device_map):
 
     return None
 
-
-def build_ping_result(devices_db, links_db, source_id, target_id):
+def build_ping_result(devices_db, links_db, source_ip, target_ip):
     device_map = _device_map(devices_db)
-    source = device_map.get(source_id)
-    target = device_map.get(target_id)
+    source = _find_device_by_ip(devices_db, source_ip)
+    target = _find_device_by_ip(devices_db, target_ip)
 
     if not source or not target:
         return _fail("Device not found")
+
+    source_id = source.id
+    target_id = target.id
 
     if source_id == target_id:
         return {
@@ -143,11 +146,9 @@ def build_ping_result(devices_db, links_db, source_id, target_id):
             "message": f"Ping to self ({source.name}) — 0ms",
         }
 
-    dest_ip = _get_device_target_ip(target)
-    if not dest_ip:
-        return _fail(f"Destination {target.name} has no IP address configured")
+    dest_ip = target_ip
 
-    forward_path = trace_route(devices_db, links_db, source_id, target_id)
+    forward_path = trace_route(devices_db, links_db, source_ip, target_ip)
 
     if not forward_path or forward_path[-1][0] != target_id:
         source_has_route = source.find_next_hop(dest_ip) is not None
@@ -173,10 +174,9 @@ def build_ping_result(devices_db, links_db, source_id, target_id):
                 f"Destination unreachable — routing failed at an intermediate hop"
             )
 
-    return_path = trace_route(devices_db, links_db, target_id, source_id)
+    return_path = trace_route(devices_db, links_db, target_ip, source_ip)
 
     if not return_path or return_path[-1][0] != source_id:
-        source_ip = _get_device_target_ip(source)
         return _fail(
             f"Request timed out — {target.name} reached but reply "
             f"cannot route back to {source.name} "

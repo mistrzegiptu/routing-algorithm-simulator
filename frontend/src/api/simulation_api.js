@@ -64,8 +64,8 @@ export class SimulationSocket {
         this._send({ action: "start", algorithm, speed, seed, options, skip_idle: skipIdle });
     }
 
-    ping(sourceId, targetId) {
-        this._send({ action: "ping", source_id: sourceId, target_id: targetId });
+    ping(sourceIp, targetIp) {
+        this._send({ action: "ping", source_ip: sourceIp, target_ip: targetIp });
     }
 
     pause() { this._send({ action: "pause" }); }

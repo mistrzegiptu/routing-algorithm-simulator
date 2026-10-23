@@ -37,6 +37,7 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     mode,
     onSwitchMode,
     pingSourceId,
+    pingDestId,
     simPingArmed,
     onToggleSimPing,
     onStatusChange,
@@ -50,6 +51,13 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
     eventCount,
     collapsed,
     onToggleCollapsed,
+    simPingSourcePorts,
+    simPingDestPorts,
+    simPingSourceIp,
+    simPingDestIp,
+    onSourceIpSelect,
+    onDestIpSelect,
+    onSendPing
   },
   ref
 ) {
@@ -301,9 +309,39 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
                 </p>
               )}
             </section>
-
             <section className="sidebar__section">
               <h2 className="sidebar__heading">Ping</h2>
+              {pingSourceId != null && (
+                <label>
+                  <span>IP źródłowe</span>
+                  <select 
+                    value={simPingSourceIp ?? ""}
+                    onChange={event => onSourceIpSelect(event.target.value)}
+                    className="sim-select"
+                  >
+                  <option value="">Wybierz adres IP</option>
+                  {simPingSourcePorts.map(port => (
+                    <option key={port.ip} value={port.ip}>{port.ip}</option>
+                  ))}
+                  </select>
+                </label>
+              )}
+
+              {pingDestId != null && (
+                <label>
+                  <span>IP docelowe</span>
+                  <select 
+                    value={simPingDestIp ?? ""}
+                    onChange={event => onDestIpSelect(event.target.value)}
+                    className="sim-select"
+                  >
+                  <option value="">Wybierz adres IP</option>
+                  {simPingDestPorts.map(port => (
+                    <option key={port.ip} value={port.ip}>{port.ip}</option>
+                  ))}
+                  </select>
+                </label>
+              )}
               <button
                 className={`sidebar__link-btn sim-ping-toggle${simPingArmed ? " sim-ping-toggle--armed" : ""}`}
                 onClick={onToggleSimPing}
@@ -311,6 +349,13 @@ const SimulationSidebar = forwardRef(function SimulationSidebar(
                 title={running ? (simPingArmed ? "Kliknij, aby wyłączyć tryb pingowania" : "Kliknij, aby włączyć tryb pingowania") : "Uruchom symulację, aby pingować"}
               >
                 {simPingArmed ? "Wyłącz tryb pingowania" : "Włącz tryb pingowania"}
+              </button>
+              <button
+                className="sidebar__link-btn"
+                onClick={onSendPing}
+                disabled={!running || !simPingSourceIp || !simPingDestIp || !simPingArmed}
+              >
+                Wyślij ping
               </button>
               {pingHint && <p className="sidebar__hint">{pingHint}</p>}
               {!running && (

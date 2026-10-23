@@ -172,11 +172,11 @@ export async function deleteRoute(id, toDelete) {
         throw err;
     }
 }
-export async function pingDevice(sourceId, targetId) {
+export async function pingDevice(sourceIp, targetIp) {
     const res = await fetch(`${URL}/ping`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_id: sourceId, target_id: targetId })
+        body: JSON.stringify({ source_ip: sourceIp, target_ip: targetIp })
     });
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));

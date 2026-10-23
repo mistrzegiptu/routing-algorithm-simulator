@@ -24,6 +24,12 @@ export function useSimulationState(devices, links) {
     const simSidebarRef = useRef(null);
     const [simRunning, setSimRunning] = useState(false);
     const [simPingSourceId, setSimPingSourceId] = useState(null);
+    const [simPingDestId, setSimPingDestId] = useState(null);
+    const [simPingSourceIp, setSimPingSourceIp] = useState(null);
+    const [simPingDestIp, setSimPingDestIp] = useState(null);
+    const simPingSourcePorts = devices.find(d => d.id === simPingSourceId)?.ports ?? [];
+    const simPingDestPorts = devices.find(d => d.id === simPingDestId)?.ports ?? [];
+
     const [simState, setSimState] = useState('idle');
     const [simSpeed, setSimSpeed] = useState(0.1);
     const simSegments = useRef(new Map());
@@ -76,18 +82,26 @@ export function useSimulationState(devices, links) {
         }
     }, []);
 
+    const clearSimPingSelection = useCallback(() => {
+        setSimPingSourceId(null);
+        setSimPingDestId(null);
+        setSimPingSourceIp(null);
+        setSimPingDestIp(null);
+    }, []);
+
     // --- Simulation ping: click source, click target, packet flies ---
     const handleSimStatusChange = useCallback((state) => {
         const active = state === 'running' || state === 'paused';
         setSimState(state);
         setSimRunning(active);
         if (!active) {
-        setSimPingSourceId(null);
-        simSegments.current.clear();
+            clearSimPingSelection();
+            simSegments.current.clear();
         }
-    }, []);
+    }, [clearSimPingSelection]);
 
     const handleSimReset = useCallback(() => {
+        clearSimPingSelection();
         clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;
         pendingRef.current = [];
@@ -96,7 +110,7 @@ export function useSimulationState(devices, links) {
         setSimTables({});
         setSimEventCount(0);
         resetStats();
-    }, [resetStats]);
+    }, [resetStats, clearSimPingSelection]);
 
     const handleSimEvent = useCallback((ev) => {
         accumulateStats(ev);
@@ -134,18 +148,32 @@ export function useSimulationState(devices, links) {
         } else if (id === simPingSourceId) {
             startTransition(() => setSimPingSourceId(null));
         } else {
-            simSidebarRef.current?.sendPing(simPingSourceId, id);
-            startTransition(() => setSimPingSourceId(null));
+            startTransition(() => setSimPingDestId(id));
         }
     }, [simRunning, simPingSourceId]);
 
-    const handleSimPaneClick = useCallback(() => setSimPingSourceId(null),[]);
+    const handleSimSourceIpSelect = useCallback((ip) => {
+        setSimPingSourceIp(ip);
+    }, []);
+
+    const handleSimDestIpSelect = useCallback((ip) => {
+        setSimPingDestIp(ip);
+    }, []);
+
+    const handleSimSendPing = useCallback(() => {
+        if (!simRunning || !simPingSourceIp || !simPingDestIp) return;
+
+        simSidebarRef.current?.sendPing(simPingSourceIp, simPingDestIp);
+    }, [simRunning, simPingSourceIp, simPingDestIp]);
+
+    const handleSimPaneClick = useCallback(() => clearSimPingSelection(),[clearSimPingSelection]);
 
     return {
         simSidebarRef,
         simRunning,
         setSimRunning,
         simPingSourceId,
+        simPingDestId,
         simState,
         simSpeed,
         setSimSpeed,
@@ -162,6 +190,13 @@ export function useSimulationState(devices, links) {
         handleSimStatusChange,
         handleSimDeviceClick,
         handleSimPaneClick,
-        setSimPingSourceId
+        setSimPingSourceId,
+        simPingSourceIp,
+        simPingDestIp,
+        simPingSourcePorts,
+        simPingDestPorts,
+        handleSimSourceIpSelect,
+        handleSimDestIpSelect,
+        handleSimSendPing
     }
 }

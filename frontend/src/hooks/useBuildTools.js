@@ -3,7 +3,7 @@ import { AddingLinkState } from "../models/AddingLinkState.js";
 import { PingState } from "../models/PingState.js";
 import { pingDevice } from '../api/device_api';
 
-export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
+export function useBuildTools(devices, removeDevice, saveNewLink, simPingArmed) {
     const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     const [devicePendingDeletion, setDevicePendingDeletion] = useState(null);
     const [selectedLinkId, setSelectedLinkId] = useState(null);
@@ -14,13 +14,23 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
     // Ping state
     const [pingState, setPingState] = useState(PingState.NORMAL);
     const [pingSource, setPingSource] = useState(null);
+    const [pingDest, setPingDest] = useState(null);
+    const [pingSourceIp, setPingSourceIp] = useState(null);
+    const [pingDestIp, setPingDestIp] = useState(null);
     const [pingResult, setPingResult] = useState(null);
     const [pingAnimating, setPingAnimating] = useState(false);
     const [highlightedLinkIds, setHighlightedLinkIds] = useState([]);
 
+    const pingSourcePorts = devices.find(d => d.id === pingSource)?.ports ?? [];
+    const pingDestPorts = devices.find(d => d.id === pingDest)?.ports ?? [];
+
+
     const resetPing = useCallback(() => {
         setPingState(PingState.NORMAL);
         setPingSource(null);
+        setPingDest(null);
+        setPingSourceIp(null);
+        setPingDestIp(null);
         setPingResult(null);
         setPingAnimating(false);
         setHighlightedLinkIds([]);
@@ -62,9 +72,9 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
         }
     }, [addingLinkState, pingState, resetLinkSelection, resetPing]);
     
-    const executePing = useCallback(async (sourceId, targetId) => {
+    const executePing = useCallback(async (sourceIp, targetIp) => {
         try {
-            const result = await pingDevice(sourceId, targetId);
+            const result = await pingDevice(sourceIp, targetIp);
             setPingResult(result);
         
             if (result.success && result.hops.length > 0) {
@@ -128,7 +138,8 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
                 alert("Nie można pingować tego samego urządzenia");
                 return;
             }
-            executePing(pingSource, id);
+            setPingDest(id);
+            setPingState(PingState.READY_TO_SEND);
             return;
         }
     
@@ -153,6 +164,14 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
             }
       }, [pingState, pingSource, executePing, addingLinkState, sourceDevice, saveLink]);
 
+    const handleSendPing = useCallback(() => {
+        if (pingState !== PingState.READY_TO_SEND || !pingSourceIp || !pingDestIp) {
+            return;
+        }
+
+        executePing(pingSourceIp, pingDestIp);
+    }, [pingState, pingSourceIp, pingDestIp, executePing]);
+
     // --- Device deletion ---
     const requestDeleteDevice = useCallback((id) => {
         setDevicePendingDeletion(id);
@@ -171,14 +190,14 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
             if (selectedDeviceId === id) setSelectedDeviceId(null);
             setHighlightedLinkIds([]);
             if (sourceDevice === id) resetLinkSelection();
-            if (pingSource === id) resetPing();
+            if (pingSource === id || pingDest === id) resetPing();
         } catch (error) {
             console.error("Error deleting device:", error);
             alert("Nie udało się usunąć urządzenia.");
         } finally {
             setDevicePendingDeletion(null);
         }
-    }, [selectedDeviceId, devicePendingDeletion, sourceDevice, pingSource, removeDevice, resetLinkSelection, resetPing]);
+    }, [selectedDeviceId, devicePendingDeletion, sourceDevice, pingSource, removeDevice, resetLinkSelection, resetPing, pingDest]);
     
     const handleCloseConfig = useCallback(() => {
         setSelectedDeviceId(null);
@@ -226,6 +245,14 @@ export function useBuildTools(removeDevice, saveNewLink, simPingArmed) {
         handlePingReplay,
         requestDeleteDevice,
         cancelDeleteDevice,
-        confirmDeleteDevice
+        confirmDeleteDevice,
+        pingDest,
+        pingSourceIp,
+        pingDestIp,
+        setPingSourceIp,
+        setPingDestIp,
+        pingSourcePorts,
+        pingDestPorts,
+        handleSendPing,
     };
 }

@@ -83,31 +83,39 @@ class CommandHandler:
                 await self.session.send_events(self.session.engine.advance())
 
     async def _inject_ping(self, command):
-        if command.source_id is None or command.target_id is None:
-            return await self.session.send_error("Ping wymaga podania source_id i target_id")
+        if not command.source_ip or not command.target_ip:
+            return await self.session.send_error("Ping wymaga podania source_ip i target_ip")
 
         engine = self.session.engine
         if not engine:
             return await self.session.send_error("Symulacja nie jest uruchomiona")
 
-        target_ip = engine.snapshot.first_ip(command.target_id)
+        source = engine.snapshot.find_by_ip(command.source_ip)
+        target = engine.snapshot.find_by_ip(command.target_ip)
 
-        if engine.snapshot.node(command.source_id) is None or engine.snapshot.node(command.target_id) is None:
-            return await self.session.send_error(f"Nieznane urządzenie")
+        if source is None:
+            return await self.session.send_error(
+                f"Nie znaleziono urządzenia z IP {command.source_ip}"
+            )
+        if target is None:
+            return await self.session.send_error(
+                f"Nie znaleziono urządzenia z IP {command.target_ip}"
+            )
 
         now = max(engine.now, self.session.clock.sim_now())
         packet = Packet.create_ping_packet(
             packet_id=engine._next_packet_id(),
-            src_id=command.source_id,
-            dst_id=command.target_id,
-            dst_ip=target_ip,
+            src_id=source.id,
+            dst_id=target.id,
+            dst_ip=command.target_ip,
             ttl=engine.config.ttl,
             time=now
         )
 
-        packet_id = engine.inject_packet(packet.src_id, now, packet)
+        packet.meta["source_ip"] = command.source_ip
+        packet_id = engine.inject_packet(source.id, now, packet)
         self.session._wake_event.set()
         await self.session.send({
             "type": "ping_sent", "packet_id": packet_id,
-            "source_id": command.source_id, "target_id": command.target_id,
+            "source_ip": command.source_ip, "target_ip": command.target_ip,
         })
