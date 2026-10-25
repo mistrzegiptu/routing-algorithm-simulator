@@ -19,7 +19,16 @@ export default function Sidebar({
   onTogglePing,
   onImport,
   mode,
-  onSwitchMode
+  onSwitchMode,
+  pingSource,
+  pingDest,
+  pingSourcePorts,
+  pingDestPorts,
+  pingSourceIp,
+  pingDestIp,
+  onSourceIpSelect,
+  onDestIpSelect,
+  onSendPing
 }) {
   const isLinking = addingLinkState !== AddingLinkState.NORMAL;
   const isPinging = pingState !== PingState.NORMAL;
@@ -31,9 +40,11 @@ export default function Sidebar({
       ? "Kliknij urządzenie źródłowe"
       : pingState === PingState.SELECTING_DESTINATION
         ? "Kliknij urządzenie docelowe"
-        : pingState === PingState.ANIMATING
-          ? "Ping w toku…"
-          : null;
+        : pingState === PingState.READY_TO_SEND
+          ? "Wybierz adresy IP i wyślij ping"
+          : pingState === PingState.ANIMATING
+            ? "Ping w toku…"
+            : null;
 
   const exportHandler = async () => {
     try {
@@ -136,11 +147,49 @@ export default function Sidebar({
 
         <section className="sidebar__section">
           <h2 className="sidebar__heading">Narzędzia</h2>
+          {pingSource != null && (
+              <label>
+                <span>IP źródłowe</span>
+                <select 
+                  value={pingSourceIp ?? ""}
+                  onChange={event => onSourceIpSelect(event.target.value)}
+                  className="sim-select"
+                >
+                <option value="">Wybierz adres IP</option>
+               {pingSourcePorts.map(port => (
+                <option key={port.ip} value={port.ip}>{port.ip}</option>
+              ))}
+                </select>
+              </label>
+          )}
+
+          {pingDest != null && (
+            <label>
+              <span>IP docelowe</span>
+              <select 
+                value={pingDestIp ?? ""}
+                onChange={event => onDestIpSelect(event.target.value)}
+                className="sim-select"
+              >
+                  <option value="">Wybierz adres IP</option>
+                  {pingDestPorts.map(port => (
+                    <option key={port.ip} value={port.ip}>{port.ip}</option>
+                  ))}
+              </select>
+            </label>
+          )}
           <button
             className={`sidebar__link-btn sidebar__ping-btn ${isPinging ? "is-active" : ""}`}
             onClick={onTogglePing}
           >
             {isPinging ? "📡 Anuluj ping" : "📡 Ping"}
+          </button>
+          <button
+            className="sidebar__link-btn"
+            onClick={onSendPing}
+            disabled={pingState !== PingState.READY_TO_SEND || !pingSourceIp || !pingDestIp}
+          >
+            Wyślij ping
           </button>
           {pingHint && <p className="sidebar__hint sidebar__hint--ping">{pingHint}</p>}
         </section>

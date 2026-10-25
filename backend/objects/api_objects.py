@@ -99,5 +99,14 @@ class RouteDeleteRequest(BaseModel):
         return v
     
 class PingRequest(BaseModel):
-    source_id: int
-    target_id: int
+    source_ip: str
+    target_ip: str
+
+    @field_validator('source_ip', 'target_ip')
+    @classmethod
+    def validate_ip(cls, v):
+        try:
+            ipaddress.IPv4Address(v)
+        except ValueError:
+            raise ValueError('Invalid IPv4 address format')
+        return v
